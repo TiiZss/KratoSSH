@@ -8,6 +8,8 @@
 <image src="/SSHCriptoHarden.png" alt="BreakinLab">
 Bash script to harden an SSH server and allow only strong encryption algorithms to be accepted by the server<br />
 Working and tested on Ubuntu 22.04 and WSL<br />
+For now only Ubuntu. 
+New distros are comming!
 
 ## How To
 #### 1) Clone the repo
