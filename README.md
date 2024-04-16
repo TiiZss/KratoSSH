@@ -12,6 +12,14 @@ For now only Ubuntu.
 New distros are comming!
 
 ## How To
+You can use this script directly without downloading it or you can download and run it.
+
+### Without download
+You have to be root or use sudo to run it
+```
+curl -sL https://raw.githubusercontent.com/TiiZss/SSHCryptoHarden/main/sshcryptoharden.sh | bash -s
+```
+### With download
 #### 1) Clone the repo
 Clone this repo, or download it any way you prefer
 ```
@@ -19,7 +27,7 @@ git clone https://github.com/TiiZss/SSHCryptoHarden.git
 cd SSHCryptoHarden
 chmod +x sshcryptoharden.sh
 ```
-## Usage
+#### Usage
 You have to be root or use sudo to run it
 ```
 ./sshcryptoharden.sh
