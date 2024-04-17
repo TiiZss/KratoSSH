@@ -6,10 +6,26 @@
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?business=AC5N3XX2KGY2S&no_recurring=0&item_name=Seguir+con+el+desarrollo+de+la+herramienta&currency_code=EUR)
 
 <image src="/SSHCriptoHarden.png" alt="BreakinLab">
-Bash script to harden an SSH server and allow only strong encryption algorithms to be accepted by the server<br />
-Working and tested on Ubuntu 22.04 and WSL<br />
-For now only Ubuntu. 
-New distros are comming!
+Bash script to harden an SSH server and allow only strong encryption algorithms to be accepted by the server, as well as being able to harden the SSH connection if you use it as a client.<br />
+Working and tested on Ubuntu 20.04/22.04, Debian 10/11/12, CentOS 8, Rocky Linux 9 and WSL<br /><br />
+  
+Available for server on:
+* Debian 10/11/12
+* Ubuntu 14.04/16.04/18.04/20.04/22.04
+* Ubuntu Core 16/18
+* Rocky Linux 9
+* Amazon Linux 2023
+* CentOS 7/8
+* RedHat Enterprise Linux 7/8
+* OpenBSD 6.2
+* pfSense 2.4
+
+Available for client on:
+* Debian 12
+* Ubuntu 16.04/18.04/20.04/22.04
+* Linux Mint 18/19/20/21
+* Rocky Linux 9
+* Amazon Linux 2023
 
 ## How To
 You can use this script directly without downloading it or you can download and run it.
