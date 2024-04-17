@@ -24,7 +24,7 @@ curl -sL https://raw.githubusercontent.com/TiiZss/KratoSSH/main/sshcryptoharden.
 Clone this repo, or download it any way you prefer
 ```
 git clone https://github.com/TiiZss/KratoSSH.git
-cd SSHCryptoHarden
+cd KratoSSH
 chmod +x sshcryptoharden.sh
 ```
 #### Usage
