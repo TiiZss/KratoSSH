@@ -57,19 +57,19 @@ function print_date () {
 }
 
 function display_logo() { 
-	echo -e " --------------------------------------------------------------------------------"
-	echo -e "  __    __                      __                 ______    ______   __    __   "
-	echo -e " |  \  /  \  TiiZss            |  \               /      \  /      \ |  \  |  \  "
-	echo -e " | ## /  ##  ______   ______  _| ##_     ______  |  ######\|  ######\| ##  | ##  "
-	echo -e " | ##/  ##  /      \ |      \|   ## \   /      \ | ##___\##| ##___\##| ##__| ##  "
-	echo -e " | ##  ##  |  ######\ \######\ ######  |  ######\ \##    \  \##    \ | ##    ##  "
-	echo -e " | #####\  | ##   \##/      ## | ## __ | ##  | ## _\######\ _\######\| ########  "
-	echo -e " | ## \##\ | ##     |  ####### | ##|  \| ##__/ ##|  \__| ##|  \__| ##| ##  | ##  "
-	echo -e " | ##  \##\| ##      \##    ##  \##  ## \##    ## \##    ## \##    ##| ##  | ##  "
-	echo -e "  \##   \## \##       \#######   \####   \######   \######   \######  \##   \##  "
-	echo -e "                                                                                 "
-	echo -e " Script for hardening SSH Crypto functions v.$(print_date)                       "
-	echo -e " --------------------------------------------------------------------------------"
+	echo -e " ---------------------------------------------------------------------------------"
+	echo -e "   __    __                      __                 ______    ______   __    __   "
+	echo -e "  |  \  /  \  TiiZss            |  \               /      \  /      \ |  \  |  \  "
+	echo -e "  | ## /  ##  ______   ______  _| ##_     ______  |  ######\|  ######\| ##  | ##  "
+	echo -e "  | ##/  ##  /      \ |      \|   ## \   /      \ | ##___\##| ##___\##| ##__| ##  "
+	echo -e "  | ##  ##  |  ######\ \######\ ######  |  ######\ \##    \  \##    \ | ##    ##  "
+	echo -e "  | #####\  | ##   \##/      ## | ## __ | ##  | ## _\######\ _\######\| ########  "
+	echo -e "  | ## \##\ | ##     |  ####### | ##|  \| ##__/ ##|  \__| ##|  \__| ##| ##  | ##  "
+	echo -e "  | ##  \##\| ##      \##    ##  \##  ## \##    ## \##    ## \##    ##| ##  | ##  "
+	echo -e "   \##   \## \##       \#######   \####   \######   \######   \######  \##   \##  "
+	echo -e "                                                                                  "
+	echo -e " Script for hardening SSH Crypto functions v.$(print_date)                        "
+	echo -e " ---------------------------------------------------------------------------------"
 }
 
 function checkroot() {
@@ -88,6 +88,20 @@ function checkroot() {
 	fi
 }
 
+function regeneratekeys(){
+	# Re-generate the RSA and ED25519 keys
+	rm /etc/ssh/ssh_host_*
+	ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
+	ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+}
+
+function removemoduli() {
+	# Remove small Diffie-Hellman moduli
+	awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
+	mv /etc/ssh/moduli.safe /etc/ssh/moduli
+}
+
+
 function Ubuntu() {
 	version_num=$1
 	# Evaluar la versión
@@ -101,13 +115,10 @@ function Ubuntu() {
 					"24" | "23" | "22" | "21")
 						# Ubuntu 22.04 LTS Server
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Enable the RSA and ED25519 keys
 						sed -i 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -119,13 +130,10 @@ function Ubuntu() {
 					"20" | "19")
 						# Ubuntu 20.04 LTS Server
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Enable the RSA and ED25519 keys
 						sed -i 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -137,13 +145,10 @@ function Ubuntu() {
 					"18" | "17")
 						# Ubuntu 18.04 LTS Server
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Disable the DSA and ECDSA host keys
 						sed -i 's/^HostKey \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -159,8 +164,7 @@ function Ubuntu() {
 						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Disable the RSA, DSA, and ECDSA host keys
 						sed -i 's/^HostKey \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -172,13 +176,10 @@ function Ubuntu() {
 					"14")
 						# Ubuntu 14.04 LTS Server
 						# Re-generate ED25519 key
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Disable the DSA and ECDSA host keys
 						sed -i 's/^HostKey \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -209,13 +210,10 @@ function Debian() {
 					"12")
 						# Debian 12 (Bookworm)
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\n KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,gss-curve25519-sha256-,diffie-hellman-group16-sha512,gss-group16-sha512-,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\n\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\n\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\n\nHostKeyAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nRequiredRSASize 3072\n\nCASignatureAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nGSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-\n\nHostbasedAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-256\n\nPubkeyAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-256\n\n" > /etc/ssh/sshd_config.d/kratossh_hardening.conf
@@ -225,15 +223,13 @@ function Debian() {
 						# Debian 11 (Bullseye)
 						# Re-generate the RSA and ED25519 keys
 						rm -f /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Enable the RSA and ED25519 keys
 						sed -i 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "\n# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\nHostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com" > /etc/ssh/sshd_config.d/kratossh_hardening.conf
@@ -242,17 +238,14 @@ function Debian() {
 					"10")
 						# Debian 10 (Buster)
 						# Re-generate the RSA and ED25519 keys
-						rm -f /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 
 						# Enable the RSA and ED25519 keys
 						sed -i 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "\n# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\nHostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com" >> /etc/ssh/sshd_config
@@ -280,15 +273,12 @@ function CentOS() {
 					"8")
 						# CentOS 8
 						# Re-generate the RSA and ED25519 keys
-						rm -f /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 						chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
 						chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Disable ECDSA host key
 						sed -i 's/^HostKey \/etc\/ssh\/ssh_host_ecdsa_key$/\#HostKey \/etc\/ssh\/ssh_host_ecdsa_key/g' /etc/ssh/sshd_config
@@ -316,8 +306,7 @@ EOF
 						chmod g+r /etc/ssh/ssh_host_ed25519_key
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Disable the RSA, DSA, and ECDSA host keys
 						sed -i 's/^HostKey \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
@@ -348,13 +337,10 @@ function Amazon() {
 					"2023")
 						# Amazon Linux 2023
 						# Re-generate the RSA and ED25519 keys
-						rm -f /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,gss-curve25519-sha256-,diffie-hellman-group16-sha512,gss-group16-sha512-,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\n\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\n\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\n\nHostKeyAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nCASignatureAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nGSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-\n\nHostbasedAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-256\n\nPubkeyAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\n" > /etc/crypto-policies/back-ends/opensshserver.config
@@ -382,13 +368,10 @@ function Rocky() {
 					"9")
 						# Rocky Linux 9
 						# Re-generate the RSA and ED25519 keys
-						rm -f /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,gss-curve25519-sha256-,diffie-hellman-group16-sha512,gss-group16-sha512-,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\n\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\n\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\n\nHostKeyAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nRequiredRSASize 3072\n\nCASignatureAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nGSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-\n\nHostbasedAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-256\n\nPubkeyAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\n" > /etc/crypto-policies/back-ends/opensshserver.config
@@ -421,8 +404,7 @@ function UCore() {
 						echo "Be sure to upload the following 4 files to the target device's /etc/ssh directory: ssh_host_ed25519_key, ssh_host_ed25519_key.pub, ssh_host_rsa_key, ssh_host_rsa_key.pub"
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						echo -e "\n# Only enable RSA and ED25519 host keys.\nHostKey /etc/ssh/ssh_host_rsa_key\nHostKey /etc/ssh/ssh_host_ed25519_key\n\n# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >> /etc/ssh/sshd_config
@@ -466,13 +448,10 @@ function pfSense() {
 					"2")
 						# pfSense 2
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" 
+						regeneratekeys
 
 						# Remove small Diffie-Hellman moduli
-						awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
-						mv -f /etc/ssh/moduli.safe /etc/ssh/moduli
+						removemoduli
 
 						# Restrict supported key exchange, cipher, and MAC algorithms
 						sed -i.bak 's/^MACs \(.*\)$/\#MACs \1/g' /etc/ssh/sshd_config && rm /etc/ssh/sshd_config.bak
@@ -501,9 +480,7 @@ function OpenBSD() {
 					"9")
 						# OpenBSD 6
 						# Re-generate the RSA and ED25519 keys
-						rm /etc/ssh/ssh_host_*
-						ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-						ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" 
+						regeneratekeys
 
 						# Create custom Diffie-Hellman groups
 						ssh-keygen -G /etc/ssh/moduli -b 3072
