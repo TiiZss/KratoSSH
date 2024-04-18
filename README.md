@@ -5,13 +5,13 @@
 ![GitHub all releases](https://img.shields.io/github/downloads/TiiZss/KratoSSH/total) <br />
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?business=AC5N3XX2KGY2S&no_recurring=0&item_name=Seguir+con+el+desarrollo+de+la+herramienta&currency_code=EUR)
 
-<image src="/SSHCriptoHarden.png" alt="BreakinLab">
+<image src="/KratoSSH.png" alt="KratoSSH - CryptoHarden">
 Bash script to harden an SSH server and allow only strong encryption algorithms to be accepted by the server, as well as being able to harden the SSH connection if you use it as a client.<br />
 Working and tested on Ubuntu 20.04/22.04, Debian 10/11/12, CentOS 8, Rocky Linux 9 and WSL<br /><br />
   
-Available for server on:
+Available for SSH server on:
 * Debian 10/11/12
-* Ubuntu 14.04/16.04/18.04/20.04/22.04
+* Ubuntu 14.04 to 24.04
 * Ubuntu Core 16/18
 * Rocky Linux 9
 * Amazon Linux 2023
@@ -20,7 +20,7 @@ Available for server on:
 * OpenBSD 6.2
 * pfSense 2.4
 
-Available for client on:
+Available for SSH client on:
 * Debian 12
 * Ubuntu 16.04/18.04/20.04/22.04
 * Linux Mint 18/19/20/21
@@ -33,7 +33,7 @@ You can use this script directly without downloading it or you can download and 
 ### Without download
 You have to be root or use sudo to run it
 ```
-curl -sL https://raw.githubusercontent.com/TiiZss/KratoSSH/main/sshcryptoharden.sh | bash -s
+curl -sL https://raw.githubusercontent.com/TiiZss/KratoSSH/main/KratoSSH.sh | bash -s
 ```
 ### With download
 #### 1) Clone the repo
@@ -41,12 +41,12 @@ Clone this repo, or download it any way you prefer
 ```
 git clone https://github.com/TiiZss/KratoSSH.git
 cd KratoSSH
-chmod +x sshcryptoharden.sh
+chmod +x KratoSSH.sh
 ```
 #### Usage
 You have to be root or use sudo to run it
 ```
-./sshcryptoharden.sh
+./KratoSSH.sh
 ```
 
 ## Next machines / steps
