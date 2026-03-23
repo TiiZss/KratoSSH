@@ -93,10 +93,8 @@ function die() {
 }
 
 function print_date () {
-	# Obtener la fecha de creación del script
-	fecha_creacion=$(stat -c %y "$0")
-
-	# Imprimir la fecha de creación
+	# Portable: date -r works on both GNU and BSD
+	fecha_creacion=$(date -r "$0" 2>/dev/null || stat -c %y "$0" 2>/dev/null || date)
 	echo "$fecha_creacion"
 }
 
@@ -311,7 +309,22 @@ function safe_sed() {
         log_info "[DRY-RUN] Would run sed: $@"
         return 0
     fi
-    sed -i "$@"
+    # GNU sed uses -i without argument; BSD sed requires -i ''
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
+function get_ssh_keys_group() {
+    if getent group ssh_keys &>/dev/null; then
+        echo "ssh_keys"
+    elif getent group ssh &>/dev/null; then
+        echo "ssh"
+    else
+        echo ""
+    fi
 }
 
 function Ubuntu() {
@@ -443,8 +456,12 @@ function CentOS() {
         "8")
             regeneratekeys
             if [ "$DRY_RUN" = false ]; then
-                chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
-                chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                local ssh_group
+                ssh_group=$(get_ssh_keys_group)
+                if [ -n "$ssh_group" ]; then
+                    chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                    chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                fi
             else
                  log_info "[DRY-RUN] Would chgrp/chmod keys"
             fi
@@ -479,8 +496,12 @@ EOF
             if [ "$DRY_RUN" = false ]; then
                 rm -f /etc/ssh/ssh_host_*
                 ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
-                chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key
-                chmod g+r /etc/ssh/ssh_host_ed25519_key
+                local ssh_group
+                ssh_group=$(get_ssh_keys_group)
+                if [ -n "$ssh_group" ]; then
+                    chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key
+                    chmod g+r /etc/ssh/ssh_host_ed25519_key
+                fi
             else
                  log_info "[DRY-RUN] Would regenerate ED25519 key for CentOS 7"
             fi
@@ -664,6 +685,52 @@ function OpenBSD() {
     restart_ssh
 }
 
+function Fedora() {
+    version_num=$1
+    if [ "$version_num" != "rolling" ] && { [ -z "$version_num" ] || ! [ "$version_num" -ge 36 ] 2>/dev/null; }; then
+        log_error "Tu versión de Fedora ($version_num) es demasiado antigua. Se requiere Fedora 36+."
+        return
+    fi
+
+    log_success "Tu versión de Fedora ($version_num) es compatible."
+
+    regeneratekeys
+    if [ "$DRY_RUN" = false ]; then
+        local ssh_group
+        ssh_group=$(get_ssh_keys_group)
+        if [ -n "$ssh_group" ]; then
+            chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+            chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+        fi
+    else
+        log_info "[DRY-RUN] Would chgrp/chmod keys"
+    fi
+
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+    restart_ssh
+}
+
+function openSUSE() {
+    version_num=$1
+    log_success "Aplicando SSH Hardening para openSUSE ($version_num)..."
+
+    regeneratekeys
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS"
+    restart_ssh
+}
+
+function Arch() {
+    version_num=$1
+    log_success "Aplicando SSH Hardening para Arch Linux (rolling release)..."
+
+    regeneratekeys
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+    restart_ssh
+}
+
 # Funciones para SSH Hardening de cliente
 
 function UbuntuC() {
@@ -770,6 +837,24 @@ function RockyC() {
     esac
 }
 
+function FedoraC() {
+    version_num=$1
+    log_success "Tu versión de Fedora ($version_num) es compatible."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
+
+function openSUSEC() {
+    version_num=$1
+    log_success "Aplicando SSH Client Hardening para openSUSE ($version_num)..."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
+
+function ArchC() {
+    version_num=$1
+    log_success "Aplicando SSH Client Hardening para Arch Linux (rolling)..."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
+
 function detect_os() {
     if [ -f "/etc/os-release" ]; then
 		name=$(cat /etc/os-release | grep -i "^NAME" | cut -d "=" -f 2 | tr -d '"')
@@ -862,6 +947,50 @@ function detect_os() {
 				exit 1
 			;;
 		esac
+	elif [[ $name == *"AlmaLinux"* ]]; then
+		log_info "Detectado AlmaLinux, usando configuración de Rocky Linux $version_num"
+		name="Rocky"
+	elif [[ $name == *"Oracle"* ]]; then
+		log_info "Detectado Oracle Linux, usando configuración de Rocky Linux $version_num"
+		name="Rocky"
+	elif [[ $name == *"Fedora"* ]]; then
+		name="Fedora"
+	elif [[ $name == *"openSUSE"* ]] || [[ $name == *"SUSE"* ]]; then
+		if [[ $name == *"Tumbleweed"* ]] || [ "${version_num:-0}" -gt 20000 ] 2>/dev/null; then
+			version_num="tumbleweed"
+		fi
+		name="openSUSE"
+	elif [[ $name == *"Arch"* ]] || [[ $name == *"Manjaro"* ]] || [[ $name == *"EndeavourOS"* ]] || [[ $name == *"Garuda"* ]]; then
+		name="Arch"
+		version_num="rolling"
+	elif [[ $name == *"Pop"* ]]; then
+		log_info "Detectado Pop!_OS, usando configuración de Ubuntu $version_num"
+		name="Ubuntu"
+	elif [[ $name == *"elementary"* ]]; then
+		local orig_version="$version_num"
+		case $version_num in
+			"5") version_num="18" ;;
+			"6") version_num="20" ;;
+			"7") version_num="22" ;;
+			*)   version_num="22" ;;
+		esac
+		log_info "Detectado elementary OS $orig_version, usando configuración de Ubuntu $version_num"
+		name="Ubuntu"
+	elif [[ $name == *"Zorin"* ]]; then
+		local orig_version="$version_num"
+		case $version_num in
+			"16") version_num="20" ;;
+			"17") version_num="22" ;;
+			*)    version_num="22" ;;
+		esac
+		log_info "Detectado Zorin OS $orig_version, usando configuración de Ubuntu $version_num"
+		name="Ubuntu"
+	elif [[ $name == *"MX"* ]]; then
+		log_info "Detectado MX Linux, usando configuración de Debian $version_num"
+		name="Debian"
+	elif [[ $name == *"Raspbian"* ]]; then
+		log_info "Detectado Raspbian, usando configuración de Debian $version_num"
+		name="Debian"
 	fi
 
 	if [[ $name == *" "* ]]; then
