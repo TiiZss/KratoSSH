@@ -111,8 +111,12 @@ function CentOS() {
         "8")
             regeneratekeys
             if [ "$DRY_RUN" = false ]; then
-                chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
-                chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                local ssh_group
+                ssh_group=$(get_ssh_keys_group)
+                if [ -n "$ssh_group" ]; then
+                    chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                    chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                fi
             else
                  log_info "[DRY-RUN] Would chgrp/chmod keys"
             fi
@@ -146,8 +150,12 @@ EOF
             # Re-generate the ED25519 key (backup existing keys first via regeneratekeys)
             regeneratekeys
             if [ "$DRY_RUN" = false ]; then
-                chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key
-                chmod g+r /etc/ssh/ssh_host_ed25519_key
+                local ssh_group
+                ssh_group=$(get_ssh_keys_group)
+                if [ -n "$ssh_group" ]; then
+                    chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key
+                    chmod g+r /etc/ssh/ssh_host_ed25519_key
+                fi
             else
                  log_info "[DRY-RUN] Would regenerate ED25519 key for CentOS 7"
             fi
@@ -431,4 +439,68 @@ function RockyC() {
             echo -e "Estas en Rocky Linux version $(version_num) y no se ha implementado nada para ello todavía"
         ;;
     esac
+}
+
+function Fedora() {
+    version_num=$1
+    if [ "$version_num" != "rolling" ] && { [ -z "$version_num" ] || ! [ "$version_num" -ge 36 ] 2>/dev/null; }; then
+        log_error "Tu versión de Fedora ($version_num) es demasiado antigua. Se requiere Fedora 36+."
+        return
+    fi
+
+    log_success "Tu versión de Fedora ($version_num) es compatible."
+
+    regeneratekeys
+    if [ "$DRY_RUN" = false ]; then
+        local ssh_group
+        ssh_group=$(get_ssh_keys_group)
+        if [ -n "$ssh_group" ]; then
+            chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+            chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+        fi
+    else
+        log_info "[DRY-RUN] Would chgrp/chmod keys"
+    fi
+
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+    restart_ssh
+}
+
+function openSUSE() {
+    version_num=$1
+    log_success "Aplicando SSH Hardening para openSUSE ($version_num)..."
+
+    regeneratekeys
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS"
+    restart_ssh
+}
+
+function Arch() {
+    version_num=$1
+    log_success "Aplicando SSH Hardening para Arch Linux (rolling release)..."
+
+    regeneratekeys
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+    restart_ssh
+}
+
+function FedoraC() {
+    version_num=$1
+    log_success "Tu versión de Fedora ($version_num) es compatible."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
+
+function openSUSEC() {
+    version_num=$1
+    log_success "Aplicando SSH Client Hardening para openSUSE ($version_num)..."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
+
+function ArchC() {
+    version_num=$1
+    log_success "Aplicando SSH Client Hardening para Arch Linux (rolling)..."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
 }

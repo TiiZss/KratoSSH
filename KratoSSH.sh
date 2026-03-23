@@ -86,11 +86,49 @@ function detect_os() {
         version_num="12"
         log_info "Estas usando Kali Linux, aplicando SSH Hardening de $name $version_num"
     elif [[ $name == *"Fedora"* ]]; then
-        name="CentOS"
-        log_info "Estas usando Fedora, aplicando SSH Hardening de CentOS..."
+        name="Fedora"
     elif [[ $name == *"AlmaLinux"* ]]; then
-        name="CentOS"
-        log_info "Estas usando AlmaLinux, aplicando SSH Hardening de CentOS..."
+        log_info "Detectado AlmaLinux, usando configuración de Rocky Linux $version_num"
+        name="Rocky"
+    elif [[ $name == *"Oracle"* ]]; then
+        log_info "Detectado Oracle Linux, usando configuración de Rocky Linux $version_num"
+        name="Rocky"
+    elif [[ $name == *"openSUSE"* ]] || [[ $name == *"SUSE"* ]]; then
+        if [[ $name == *"Tumbleweed"* ]] || [ "${version_num:-0}" -gt 20000 ] 2>/dev/null; then
+            version_num="tumbleweed"
+        fi
+        name="openSUSE"
+    elif [[ $name == *"Arch"* ]] || [[ $name == *"Manjaro"* ]] || [[ $name == *"EndeavourOS"* ]] || [[ $name == *"Garuda"* ]]; then
+        name="Arch"
+        version_num="rolling"
+    elif [[ $name == *"Pop"* ]]; then
+        log_info "Detectado Pop!_OS, usando configuración de Ubuntu $version_num"
+        name="Ubuntu"
+    elif [[ $name == *"elementary"* ]]; then
+        local orig_version="$version_num"
+        case $version_num in
+            "5") version_num="18" ;;
+            "6") version_num="20" ;;
+            "7") version_num="22" ;;
+            *)   version_num="22" ;;
+        esac
+        log_info "Detectado elementary OS $orig_version, usando configuración de Ubuntu $version_num"
+        name="Ubuntu"
+    elif [[ $name == *"Zorin"* ]]; then
+        local orig_version="$version_num"
+        case $version_num in
+            "16") version_num="20" ;;
+            "17") version_num="22" ;;
+            *)    version_num="22" ;;
+        esac
+        log_info "Detectado Zorin OS $orig_version, usando configuración de Ubuntu $version_num"
+        name="Ubuntu"
+    elif [[ $name == *"MX"* ]]; then
+        log_info "Detectado MX Linux, usando configuración de Debian $version_num"
+        name="Debian"
+    elif [[ $name == *"Raspbian"* ]]; then
+        log_info "Detectado Raspbian, usando configuración de Debian $version_num"
+        name="Debian"
     elif [[ $name == *"Parrot"* ]]; then
 		name="Debian"
 		case $version_num in

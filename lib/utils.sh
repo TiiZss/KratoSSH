@@ -50,7 +50,8 @@ function die() {
 }
 
 function print_date () {
-	stat -c %y "$0" 2>/dev/null || date
+	# Portable: date -r works on both GNU and BSD
+	date -r "$0" 2>/dev/null || stat -c %y "$0" 2>/dev/null || date
 }
 
 function safe_sed() {
@@ -58,7 +59,22 @@ function safe_sed() {
         log_info "[DRY-RUN] Would run sed: $@"
         return 0
     fi
-    sed -i "$@"
+    # GNU sed uses -i without argument; BSD sed requires -i ''
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
+function get_ssh_keys_group() {
+    if getent group ssh_keys &>/dev/null; then
+        echo "ssh_keys"
+    elif getent group ssh &>/dev/null; then
+        echo "ssh"
+    else
+        echo ""
+    fi
 }
 
 function display_logo() { 
