@@ -26,6 +26,8 @@ function restart_ssh() {
         log_info "Restarting SSH service..."
         if command -v systemctl &> /dev/null; then
             systemctl restart sshd || systemctl restart ssh || log_warn "Failed to restart SSH via systemctl"
+        elif command -v rc-service &> /dev/null; then
+            rc-service sshd restart || rc-service ssh restart || log_warn "Failed to restart SSH via rc-service"
         elif command -v service &> /dev/null; then
             service ssh restart || service sshd restart || log_warn "Failed to restart SSH via service"
         else

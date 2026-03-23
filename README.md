@@ -19,6 +19,7 @@ Available for SSH server on:
 * RedHat Enterprise Linux 7/8
 * OpenBSD 6.2
 * pfSense 2.4
+* Alpine Linux
 
 Available for SSH client on:
 * Debian 12
@@ -26,6 +27,7 @@ Available for SSH client on:
 * Linux Mint 18/19/20/21
 * Rocky Linux 9
 * Amazon Linux 2023
+* Alpine Linux
 
 ## How To
 You can use this script directly without downloading it or you can download and run it.

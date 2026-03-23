@@ -119,6 +119,14 @@ function configure_interactive() {
         read -r mfa_resp
         if [[ ! "$mfa_resp" =~ ^[yY] ]]; then
             DO_MFA=false
+        else
+            echo -en " ${TBlue}[?]${TDefault} Enforce STRICT MFA (removes 'nullok', may lock out if unconfigured)? (y/n) [n]: "
+            read -r strict_resp
+            if [[ "$strict_resp" =~ ^[yY] ]]; then
+                STRICT_MFA=true
+            else
+                STRICT_MFA=false
+            fi
         fi
     fi
     

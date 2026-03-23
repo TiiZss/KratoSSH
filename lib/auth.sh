@@ -22,11 +22,22 @@ function apply_auth_hardening() {
     
     if [ -n "$allow_groups" ]; then
         config+="AllowGroups $allow_groups\n"
-        # Check if group exists, if not create it?
-        # Maybe just warn if it doesn't exist
+        
         if ! getent group "$allow_groups" >/dev/null; then
              log_warn "Group '$allow_groups' does not exist. Please create it or you might be locked out!"
-             # groupadd "$allow_groups" # Optional: auto-create? Better to just warn.
+        else
+             local current_user="${SUDO_USER:-$USER}"
+             if [ -n "$current_user" ] && [ "$current_user" != "root" ]; then
+                 if ! id -nG "$current_user" | grep -qw "$allow_groups"; then
+                     log_warn "WARNING: User '$current_user' is not in '$allow_groups'."
+                     log_warn "You could be locked out. Attempting to add '$current_user' to '$allow_groups'..."
+                     if [ "$DRY_RUN" = false ]; then
+                         usermod -aG "$allow_groups" "$current_user" || log_warn "Failed to add user to group. Fix manually!"
+                     else
+                         log_info "[DRY-RUN] Would add $current_user to $allow_groups"
+                     fi
+                 fi
+             fi
         fi
     fi
 

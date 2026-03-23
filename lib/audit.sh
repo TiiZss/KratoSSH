@@ -40,10 +40,10 @@ function audit_system() {
         else
             # Save current directory
             pushd "$root_dir/ssh-audit" > /dev/null
-            if git pull --quiet; then
+            if timeout 10 git pull --quiet; then
                 log_success "ssh-audit updated successfully."
             else
-                log_warn "Failed to update ssh-audit. Continuing with current version."
+                log_warn "Failed to update ssh-audit (or timed out). Continuing with current version."
             fi
             popd > /dev/null
         fi

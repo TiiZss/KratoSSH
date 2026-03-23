@@ -30,7 +30,10 @@ source "$SCRIPT_DIR/lib/perimeter.sh" || { echo "Failed to load lib/perimeter.sh
 source "$SCRIPT_DIR/lib/menu.sh" || { echo "Failed to load lib/menu.sh"; exit 1; }
 
 function detect_os() {
-    if [ -f "/etc/os-release" ]; then
+    if [ -f "/etc/alpine-release" ]; then
+        name="Alpine"
+        version=$(cat /etc/alpine-release)
+    elif [ -f "/etc/os-release" ]; then
 		. /etc/os-release
 		name="${NAME}"
 		version="${VERSION_ID}"
@@ -180,6 +183,7 @@ function run_hardening() {
         DO_NET=false
         DO_MFA=false
         DO_PERIM=false
+        STRICT_MFA=false
         
         if [ "$AUTO_MODE" = false ]; then
             # Launch Interactive Menu to set DO_* variables
@@ -216,7 +220,7 @@ function run_hardening() {
         
         # MFA
         if [ "$DO_MFA" = true ]; then
-            apply_mfa_hardening
+            apply_mfa_hardening "$STRICT_MFA"
         fi
         
         # Perimeter

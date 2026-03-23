@@ -24,8 +24,14 @@ function install_mfa_pkg() {
 }
 
 function configure_pam() {
+    local strict="$1"
     local pam_file="/etc/pam.d/sshd"
-    log_info "Configuring PAM for Google Authenticator..."
+    local pam_module="auth required pam_google_authenticator.so"
+    if [ "$strict" != true ]; then
+        pam_module+=" nullok"
+    fi
+
+    log_info "Configuring PAM for Google Authenticator (Strict: $strict)..."
 
     if [ "$DRY_RUN" = true ]; then
         log_info "[DRY-RUN] Would backup and edit $pam_file to include pam_google_authenticator.so"
@@ -36,20 +42,24 @@ function configure_pam() {
         # Backup before modifying
         cp "$pam_file" "${pam_file}.bak.$(date +%Y%m%d_%H%M%S)"
 
-        # On Debian/Ubuntu based systems, it's safer to insert it right after standard auth
-        # nullok ensures users that haven't set it up don't get locked out initially.
         if grep -q "@include common-auth" "$pam_file"; then
-            safe_sed '/@include common-auth/a auth required pam_google_authenticator.so nullok' "$pam_file"
+            safe_sed "/@include common-auth/a $pam_module" "$pam_file"
         else
-            echo "auth required pam_google_authenticator.so nullok" >> "$pam_file"
+            echo "$pam_module" >> "$pam_file"
         fi
         log_success "Updated $pam_file"
     else
         log_info "PAM already configured for Google Authenticator."
+        if [ "$strict" = true ] && grep -q "pam_google_authenticator.so nullok" "$pam_file"; then
+            log_info "Removing 'nullok' for strict MFA..."
+            safe_sed 's/pam_google_authenticator.so nullok/pam_google_authenticator.so/' "$pam_file"
+            log_success "Strict MFA enforced."
+        fi
     fi
 }
 
 function apply_mfa_hardening() {
+    local strict="${1:-false}"
     log_info "Applying MFA Hardening..."
     
     # 1. Install Package
@@ -59,7 +69,7 @@ function apply_mfa_hardening() {
     fi
 
     # 2. Configure PAM
-    configure_pam
+    configure_pam "$strict"
 
     # 3. Configure SSHD
     # Detect OpenSSH version: ChallengeResponseAuthentication was renamed to

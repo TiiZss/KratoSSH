@@ -504,3 +504,19 @@ function ArchC() {
     log_success "Aplicando SSH Client Hardening para Arch Linux (rolling)..."
     apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
 }
+
+function Alpine() {
+    version_num=$1
+    log_success "Aplicando SSH Hardening para Alpine Linux ($version_num)..."
+
+    regeneratekeys
+    moduli
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+    restart_ssh
+}
+
+function AlpineC() {
+    version_num=$1
+    log_success "Aplicando SSH Client Hardening para Alpine Linux ($version_num)..."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}
