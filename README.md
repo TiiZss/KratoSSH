@@ -56,7 +56,7 @@ You have to be root or use sudo to run it
 * `-d, --dry-run`: Simulate changes without modifying any files.
 * `-a, --auto`: Run in non-interactive mode (requires `--type`).
 * `-t, --type [server|client]`: Specify operation type for auto mode.
-* `--audit`: Run a security audit against localhost using `ssh-audit`.
+* `--audit`: Run a security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
 * `-r, --restore`: Restore SSH host keys from backup.
 
 ### Examples

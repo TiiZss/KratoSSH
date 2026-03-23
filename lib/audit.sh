@@ -55,6 +55,22 @@ function audit_system() {
         return 0
     fi
     
+    local ssh_port=22
+    if command -v sshd &>/dev/null; then
+        local parsed_port=$(sshd -T 2>/dev/null | grep -i '^port ' | awk '{print $2}' | head -n 1)
+        if [ -n "$parsed_port" ] && [[ "$parsed_port" =~ ^[0-9]+$ ]]; then
+            ssh_port=$parsed_port
+        fi
+    else
+        local config_port=$(grep -i '^Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -n 1)
+        if [ -n "$config_port" ] && [[ "$config_port" =~ ^[0-9]+$ ]]; then
+            ssh_port=$config_port
+        fi
+    fi
+
     # Use the bundled script which handles paths correctly
-    python3 "$audit_script" localhost
+    if [ "$ssh_port" != "22" ]; then
+        log_info "Detected custom SSH port: $ssh_port"
+    fi
+    python3 "$audit_script" localhost -p "$ssh_port"
 }

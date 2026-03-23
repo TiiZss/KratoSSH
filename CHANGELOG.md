@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-03-23] - v20260323_2013
+### Fixed
+- **Audit**: Fixed `ssh-audit` integration failing when the SSH server operates on a custom or automatically changed port by actively parsing the local configuration to extract that port.
+
 ## [2026-03-23] - v20260323_1905
 ### Added
 - **Compatibility**: Added full SSH server and client hardening support for Alpine Linux.
