@@ -185,6 +185,10 @@ function apply_server_hardening() {
     [ -n "$ciphers" ] && config_block+="Ciphers $ciphers\n\n"
     [ -n "$macs" ] && config_block+="MACs $macs\n\n"
     [ -n "$hostkeys" ] && config_block+="HostKeyAlgorithms $hostkeys\n\nCASignatureAlgorithms $hostkeys\n\nHostbasedAcceptedAlgorithms $hostkeys\n\nPubkeyAcceptedAlgorithms $hostkeys\n\n"
+    
+    # Strictly define HostKeys to prevent OpenSSH from loading weak default keys (e.g. ECDSA/DSA)
+    config_block+="HostKey /etc/ssh/ssh_host_rsa_key\nHostKey /etc/ssh/ssh_host_ed25519_key\n\n"
+
     [ -n "$extra" ] && config_block+="$extra\n\n"
     
     # Defaults common to all (GSSAPI)

@@ -254,7 +254,7 @@ function UCore() {
                 "$SSH_CIPHERS" \
                 "$SSH_MACS" \
                 "" \
-                "HostKey /etc/ssh/ssh_host_rsa_key\nHostKey /etc/ssh/ssh_host_ed25519_key"
+                ""
         ;;
 
         "16")
