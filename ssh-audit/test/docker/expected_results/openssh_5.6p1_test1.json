@@ -1,0 +1,490 @@
+{
+    "additional_notes": [],
+    "banner": {
+        "comments": null,
+        "protocol": "2.0",
+        "raw": "SSH-2.0-OpenSSH_5.6",
+        "software": "OpenSSH_5.6"
+    },
+    "compression": [
+        "none",
+        "zlib@openssh.com"
+    ],
+    "cves": [],
+    "enc": [
+        {
+            "algorithm": "aes128-ctr",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 3.7, Dropbear SSH 0.52"
+                ]
+            }
+        },
+        {
+            "algorithm": "aes192-ctr",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 3.7"
+                ]
+            }
+        },
+        {
+            "algorithm": "aes256-ctr",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 3.7, Dropbear SSH 0.52"
+                ]
+            }
+        },
+        {
+            "algorithm": "arcfour256",
+            "notes": {
+                "fail": [
+                    "using broken RC4 cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 4.2"
+                ]
+            }
+        },
+        {
+            "algorithm": "arcfour128",
+            "notes": {
+                "fail": [
+                    "using broken RC4 cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 4.2"
+                ]
+            }
+        },
+        {
+            "algorithm": "aes128-cbc",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 2.3.0, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using weak cipher mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "3des-cbc",
+            "notes": {
+                "fail": [
+                    "using broken & deprecated 3DES cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 1.2.2, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using weak cipher mode",
+                    "using small 64-bit block size"
+                ]
+            }
+        },
+        {
+            "algorithm": "blowfish-cbc",
+            "notes": {
+                "fail": [
+                    "using weak & deprecated Blowfish cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 1.2.2, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using weak cipher mode",
+                    "using small 64-bit block size"
+                ]
+            }
+        },
+        {
+            "algorithm": "cast128-cbc",
+            "notes": {
+                "fail": [
+                    "using weak & deprecated CAST cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 2.1.0"
+                ],
+                "warn": [
+                    "using weak cipher mode",
+                    "using small 64-bit block size"
+                ]
+            }
+        },
+        {
+            "algorithm": "aes192-cbc",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 2.3.0"
+                ],
+                "warn": [
+                    "using weak cipher mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "aes256-cbc",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 2.3.0, Dropbear SSH 0.47"
+                ],
+                "warn": [
+                    "using weak cipher mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "arcfour",
+            "notes": {
+                "fail": [
+                    "using broken RC4 cipher"
+                ],
+                "info": [
+                    "available since OpenSSH 2.1.0"
+                ]
+            }
+        },
+        {
+            "algorithm": "rijndael-cbc@lysator.liu.se",
+            "notes": {
+                "fail": [
+                    "using deprecated & non-standardized Rijndael cipher"
+                ],
+                "info": [
+                    "disabled in OpenSSH 7.0: https://www.openssh.com/txt/release-7.0",
+                    "available since OpenSSH 2.3.0"
+                ],
+                "warn": [
+                    "using weak cipher mode"
+                ]
+            }
+        }
+    ],
+    "fingerprints": [
+        {
+            "hash": "sqDDYhzYz7YIQeFDc0WF8SeXtrEz+iwsV7d/FdIgztM",
+            "hash_alg": "SHA256",
+            "hostkey": "ssh-dss"
+        },
+        {
+            "hash": "5c:de:62:f0:60:c8:93:13:87:71:78:95:56:3f:61:51",
+            "hash_alg": "MD5",
+            "hostkey": "ssh-dss"
+        },
+        {
+            "hash": "YZ457EBcJTSxRKI3yXRgtAj3PBf5B9/F36b1SVooml4",
+            "hash_alg": "SHA256",
+            "hostkey": "ssh-rsa"
+        },
+        {
+            "hash": "3c:c3:38:f8:55:39:c0:4a:5a:17:89:60:2c:a1:fc:6a",
+            "hash_alg": "MD5",
+            "hostkey": "ssh-rsa"
+        }
+    ],
+    "kex": [
+        {
+            "algorithm": "diffie-hellman-group-exchange-sha256",
+            "keysize": 1024,
+            "notes": {
+                "fail": [
+                    "using small 1024-bit modulus"
+                ],
+                "info": [
+                    "available since OpenSSH 4.4"
+                ]
+            }
+        },
+        {
+            "algorithm": "diffie-hellman-group-exchange-sha1",
+            "keysize": 1024,
+            "notes": {
+                "fail": [
+                    "using small 1024-bit modulus"
+                ],
+                "info": [
+                    "available since OpenSSH 2.3.0"
+                ]
+            }
+        },
+        {
+            "algorithm": "diffie-hellman-group14-sha1",
+            "notes": {
+                "fail": [
+                    "using broken SHA-1 hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 3.9, Dropbear SSH 0.53"
+                ],
+                "warn": [
+                    "2048-bit modulus only provides 112-bits of symmetric strength"
+                ]
+            }
+        },
+        {
+            "algorithm": "diffie-hellman-group1-sha1",
+            "notes": {
+                "fail": [
+                    "using small 1024-bit modulus",
+                    "vulnerable to the Logjam attack: https://en.wikipedia.org/wiki/Logjam_(computer_security)",
+                    "using broken SHA-1 hash algorithm"
+                ],
+                "info": [
+                    "removed in OpenSSH 6.9: https://www.openssh.com/txt/release-6.9",
+                    "available since OpenSSH 2.3.0, Dropbear SSH 0.28"
+                ]
+            }
+        }
+    ],
+    "key": [
+        {
+            "algorithm": "ssh-rsa",
+            "keysize": 1024,
+            "notes": {
+                "fail": [
+                    "using broken SHA-1 hash algorithm",
+                    "using small 1024-bit modulus"
+                ],
+                "info": [
+                    "deprecated in OpenSSH 8.8: https://www.openssh.com/txt/release-8.8",
+                    "available since OpenSSH 2.5.0, Dropbear SSH 0.28"
+                ]
+            }
+        },
+        {
+            "algorithm": "ssh-dss",
+            "notes": {
+                "fail": [
+                    "using small 1024-bit modulus"
+                ],
+                "info": [
+                    "disabled in OpenSSH 7.0: https://www.openssh.com/txt/release-7.0",
+                    "available since OpenSSH 2.1.0, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using weak random number generator could reveal the key"
+                ]
+            }
+        }
+    ],
+    "mac": [
+        {
+            "algorithm": "hmac-md5",
+            "notes": {
+                "fail": [
+                    "using broken MD5 hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.1.0, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "hmac-sha1",
+            "notes": {
+                "fail": [
+                    "using broken SHA-1 hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.1.0, Dropbear SSH 0.28"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "umac-64@openssh.com",
+            "notes": {
+                "info": [
+                    "available since OpenSSH 4.7"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode",
+                    "using small 64-bit tag size"
+                ]
+            }
+        },
+        {
+            "algorithm": "hmac-ripemd160",
+            "notes": {
+                "fail": [
+                    "using deprecated RIPEMD hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.5.0"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "hmac-ripemd160@openssh.com",
+            "notes": {
+                "fail": [
+                    "using deprecated RIPEMD hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.1.0"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "hmac-sha1-96",
+            "notes": {
+                "fail": [
+                    "using broken SHA-1 hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.5.0, Dropbear SSH 0.47"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        },
+        {
+            "algorithm": "hmac-md5-96",
+            "notes": {
+                "fail": [
+                    "using broken MD5 hash algorithm"
+                ],
+                "info": [
+                    "available since OpenSSH 2.5.0"
+                ],
+                "warn": [
+                    "using encrypt-and-MAC mode"
+                ]
+            }
+        }
+    ],
+    "recommendations": {
+        "critical": {
+            "chg": {
+                "kex": [
+                    {
+                        "name": "diffie-hellman-group-exchange-sha256",
+                        "notes": "increase modulus size to 3072 bits or larger"
+                    }
+                ]
+            },
+            "del": {
+                "enc": [
+                    {
+                        "name": "3des-cbc",
+                        "notes": ""
+                    },
+                    {
+                        "name": "arcfour128",
+                        "notes": ""
+                    },
+                    {
+                        "name": "arcfour",
+                        "notes": ""
+                    },
+                    {
+                        "name": "arcfour256",
+                        "notes": ""
+                    },
+                    {
+                        "name": "blowfish-cbc",
+                        "notes": ""
+                    },
+                    {
+                        "name": "cast128-cbc",
+                        "notes": ""
+                    },
+                    {
+                        "name": "rijndael-cbc@lysator.liu.se",
+                        "notes": ""
+                    }
+                ],
+                "kex": [
+                    {
+                        "name": "diffie-hellman-group14-sha1",
+                        "notes": ""
+                    },
+                    {
+                        "name": "diffie-hellman-group1-sha1",
+                        "notes": ""
+                    },
+                    {
+                        "name": "diffie-hellman-group-exchange-sha1",
+                        "notes": ""
+                    }
+                ],
+                "key": [
+                    {
+                        "name": "ssh-dss",
+                        "notes": ""
+                    },
+                    {
+                        "name": "ssh-rsa",
+                        "notes": ""
+                    }
+                ],
+                "mac": [
+                    {
+                        "name": "hmac-md5",
+                        "notes": ""
+                    },
+                    {
+                        "name": "hmac-md5-96",
+                        "notes": ""
+                    },
+                    {
+                        "name": "hmac-ripemd160",
+                        "notes": ""
+                    },
+                    {
+                        "name": "hmac-ripemd160@openssh.com",
+                        "notes": ""
+                    },
+                    {
+                        "name": "hmac-sha1",
+                        "notes": ""
+                    },
+                    {
+                        "name": "hmac-sha1-96",
+                        "notes": ""
+                    }
+                ]
+            }
+        },
+        "warning": {
+            "del": {
+                "enc": [
+                    {
+                        "name": "aes128-cbc",
+                        "notes": ""
+                    },
+                    {
+                        "name": "aes192-cbc",
+                        "notes": ""
+                    },
+                    {
+                        "name": "aes256-cbc",
+                        "notes": ""
+                    }
+                ],
+                "mac": [
+                    {
+                        "name": "umac-64@openssh.com",
+                        "notes": ""
+                    }
+                ]
+            }
+        }
+    },
+    "target": "localhost:2222"
+}
