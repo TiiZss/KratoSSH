@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2026-03-24] - v20260324_1210
+## [2026-03-24] - v20260324_1320
+### Added
+- **Client hardening**: Added `--client-app macos-ssh` — writes a hardened `Host *` block to `~/.ssh/config` on macOS (Darwin) with strong KexAlgorithms, Ciphers, MACs, HostKeyAlgorithms, `ForwardAgent no`, `ForwardX11 no`, `Compression no`, and `RekeyLimit 1G 60m`. Idempotent: re-running replaces the existing KratoSSH block without duplicating it.
+- **Client hardening**: Added `--client-app securecrt` — patches per-session `.ini` files under `~/.vandyke/SecureCRT/Config/Sessions/` on Linux/macOS, and falls back to `windows/securecrt_hardening.ps1` on Windows/WSL. The PowerShell script locates VanDyke config in both legacy and modern paths, backs up the full config tree, and patches `Cipher List`, `MAC List`, `Kex List`, `Host Key List`, `Forward Agent`, and `Forward X11` in every session file.
+- **Testing**: Added macOS SSH config tests (KexAlgorithms, ForwardAgent, RekeyLimit, idempotency), SecureCRT Linux INI tests (cipher update, ForwardAgent disable), and SecureCRT Windows fallback test to `test-client-apps.sh`.
+
+### Changed
+- **CLI**: `--client-app` now accepts `openssh`, `putty`, `bitvise`, `securecrt`, and `macos-ssh`.
+- **README**: Updated client hardening matrix with macOS SSH and SecureCRT rows. Updated Next steps.
 ### Added
 - **CLI**: Added `--fix-port [PORT]` to combine crypto hardening with perimeter port correction in `--fix` mode.
 - **CLI**: Added `--client-app [openssh|putty|bitvise]` to select client hardening target explicitly.

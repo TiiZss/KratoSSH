@@ -126,4 +126,107 @@ echo "$bitvise_output" | grep -Fq 'windows/bitvise_hardening.ps1' || {
     exit 1
 }
 
+# ── macOS SSH config hardening test ──────────────────────────────────────────
+echo "Running macOS SSH config hardening test..."
+
+# Fake uname so apply_macos_ssh_hardening thinks it's on Darwin
+cat > "$MOCK_BIN/uname" <<'EOF'
+#!/bin/bash
+if [ "$1" = "-s" ]; then
+    echo Darwin
+    exit 0
+fi
+uname_real=$(command -v uname)
+"$uname_real" "$@"
+EOF
+chmod +x "$MOCK_BIN/uname"
+
+mkdir -p "$HOME_DIR/.ssh"
+
+macos_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app macos-ssh 2>&1)"
+macos_status=$?
+
+if [ "$macos_status" -ne 0 ]; then
+    echo "$macos_output"
+    echo "macOS SSH hardening should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'KexAlgorithms' "$HOME_DIR/.ssh/config" || {
+    echo "$macos_output"
+    echo "macOS ssh config missing KexAlgorithms block"
+    exit 1
+}
+
+grep -Fq 'ForwardAgent no' "$HOME_DIR/.ssh/config" || {
+    echo "$macos_output"
+    echo "macOS ssh config does not disable ForwardAgent"
+    exit 1
+}
+
+grep -Fq 'RekeyLimit 1G 60m' "$HOME_DIR/.ssh/config" || {
+    echo "$macos_output"
+    echo "macOS ssh config missing RekeyLimit"
+    exit 1
+}
+
+# Idempotency: running again must not duplicate the block
+HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app macos-ssh > /dev/null 2>&1 || true
+block_count="$(grep -c 'BEGIN KratoSSH macOS hardening' "$HOME_DIR/.ssh/config" || true)"
+if [ "$block_count" -ne 1 ]; then
+    echo "macOS SSH config idempotency failed: found $block_count KratoSSH blocks (expected 1)"
+    exit 1
+fi
+
+# ── SecureCRT Linux INI session test ─────────────────────────────────────────
+echo "Running SecureCRT Linux client hardening test..."
+
+mkdir -p "$HOME_DIR/.vandyke/SecureCRT/Config/Sessions"
+cat > "$HOME_DIR/.vandyke/SecureCRT/Config/Sessions/myserver.ini" <<'EOF'
+Cipher List=3des
+Forward Agent=ffffffff
+EOF
+
+securecrt_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app securecrt 2>&1)"
+securecrt_status=$?
+
+if [ "$securecrt_status" -ne 0 ]; then
+    echo "$securecrt_output"
+    echo "SecureCRT Linux client hardening should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'ChaCha20-Poly1305' "$HOME_DIR/.vandyke/SecureCRT/Config/Sessions/myserver.ini" || {
+    echo "$securecrt_output"
+    echo "SecureCRT session Cipher List was not updated"
+    exit 1
+}
+
+grep -Fq 'Forward Agent=00000000' "$HOME_DIR/.vandyke/SecureCRT/Config/Sessions/myserver.ini" || {
+    echo "$securecrt_output"
+    echo "SecureCRT session Forward Agent was not disabled"
+    exit 1
+}
+
+# ── SecureCRT Windows/WSL fallback test ──────────────────────────────────────
+echo "Running SecureCRT Windows fallback test..."
+
+# Remove the Linux session dir so the Windows path is taken
+rm -rf "$HOME_DIR/.vandyke"
+
+securecrt_win_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app securecrt 2>&1)"
+securecrt_win_status=$?
+
+if [ "$securecrt_win_status" -ne 0 ]; then
+    echo "$securecrt_win_output"
+    echo "SecureCRT Windows fallback should have succeeded"
+    exit 1
+fi
+
+echo "$securecrt_win_output" | grep -Fq 'windows/securecrt_hardening.ps1' || {
+    echo "$securecrt_win_output"
+    echo "SecureCRT Windows fallback did not call securecrt_hardening.ps1"
+    exit 1
+}
+
 echo "Third-party client hardening tests passed."

@@ -217,8 +217,20 @@ function run_hardening() {
                     die "Bitvise client hardening failed"
                 fi
                 ;;
+            securecrt)
+                log_info "Applying SecureCRT client hardening profile..."
+                if ! apply_securecrt_hardening "$SCRIPT_DIR"; then
+                    die "SecureCRT client hardening failed"
+                fi
+                ;;
+            macos-ssh)
+                log_info "Applying macOS native SSH config hardening..."
+                if ! apply_macos_ssh_hardening; then
+                    die "macOS SSH config hardening failed"
+                fi
+                ;;
             *)
-                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise)"
+                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise, securecrt, macos-ssh)"
                 ;;
         esac
     else

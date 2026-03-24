@@ -64,6 +64,9 @@ Client hardening matrix:
 | PuTTY | Linux session files (`~/.putty/sessions/`) | Supported |
 | PuTTY | Windows/WSL (PowerShell, per-session registry) | Supported |
 | Bitvise | Windows/WSL (PowerShell, global + per-profile XML) | Supported |
+| macOS SSH | macOS (`~/.ssh/config`, via `--client-app macos-ssh`) | Supported |
+| SecureCRT | Linux/macOS (INI session files) | Supported |
+| SecureCRT | Windows/WSL (PowerShell, per-session .ini) | Supported |
 
 Normalization/fallback policy:
 
@@ -197,5 +200,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add macOS native SSH config hardening via `~/.ssh/config` alongside the existing PuTTY session enforcement.
-* Add `SecureCRT` client hardening support (Windows registry + session XML files).
+* Add `WinSCP` client hardening support (Windows registry `Interface\Commander` and `SessionData` keys).
+* Add `Termius` client hardening support (export/import vault JSON patch).
