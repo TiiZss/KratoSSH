@@ -197,5 +197,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Extend PuTTY session enforcement to non-Windows environments (macOS native session files).
-* Add Fedora Client (`FedoraC`) to the `--type client` flow.
+* Add macOS native SSH config hardening via `~/.ssh/config` alongside the existing PuTTY session enforcement.
+* Add `SecureCRT` client hardening support (Windows registry + session XML files).

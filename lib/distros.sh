@@ -496,6 +496,10 @@ function Arch() {
 
 function FedoraC() {
     version_num=$1
+    if [ "$version_num" != "rolling" ] && { [ -z "$version_num" ] || ! [ "$version_num" -ge 36 ] 2>/dev/null; }; then
+        log_error "Tu versión de Fedora ($version_num) es demasiado antigua. Se requiere Fedora 36+."
+        return 1
+    fi
     log_success "Tu versión de Fedora ($version_num) es compatible."
     apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
 }

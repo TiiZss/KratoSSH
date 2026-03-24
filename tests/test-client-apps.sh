@@ -74,6 +74,36 @@ grep -Fq 'HostKey=ed25519,ecdsa,rsa,dsa,WARN' "$HOME_DIR/.putty/sessions/default
     exit 1
 }
 
+grep -Fq 'AgentFwd=0' "$HOME_DIR/.putty/sessions/default-session" || {
+    echo "$putty_output"
+    echo "PuTTY session AgentFwd was not disabled"
+    exit 1
+}
+
+grep -Fq 'X11Forward=0' "$HOME_DIR/.putty/sessions/default-session" || {
+    echo "$putty_output"
+    echo "PuTTY session X11Forward was not disabled"
+    exit 1
+}
+
+grep -Fq 'RekeyBytes=1g' "$HOME_DIR/.putty/sessions/default-session" || {
+    echo "$putty_output"
+    echo "PuTTY session RekeyBytes was not set"
+    exit 1
+}
+
+grep -Fq 'RekeyTime=60' "$HOME_DIR/.putty/sessions/default-session" || {
+    echo "$putty_output"
+    echo "PuTTY session RekeyTime was not set"
+    exit 1
+}
+
+grep -Fq 'Compression=0' "$HOME_DIR/.putty/sessions/default-session" || {
+    echo "$putty_output"
+    echo "PuTTY session Compression was not disabled"
+    exit 1
+}
+
 echo "Running Bitvise client hardening test..."
 bitvise_output="$(bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app bitvise 2>&1)"
 bitvise_status=$?

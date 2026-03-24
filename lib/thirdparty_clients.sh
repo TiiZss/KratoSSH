@@ -42,9 +42,13 @@ function apply_putty_hardening() {
     local script_dir="$1"
     local putty_dir="$HOME/.putty/sessions"
 
-    # Linux PuTTY sessions
+    # Linux and macOS PuTTY sessions (Homebrew on macOS uses the same ~/.putty/sessions/ path)
     if [ -d "$putty_dir" ]; then
-        log_info "Detected Linux PuTTY sessions at $putty_dir"
+        local platform="Linux"
+        if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+            platform="macOS"
+        fi
+        log_info "Detected $platform PuTTY sessions at $putty_dir"
 
         if [ "$DRY_RUN" = true ]; then
             log_info "[DRY-RUN] Would harden PuTTY session files under $putty_dir"
@@ -59,16 +63,23 @@ function apply_putty_hardening() {
         local hardened=0
         for session_file in "$putty_dir"/*; do
             [ -f "$session_file" ] || continue
-            _ensure_kv_setting "$session_file" "Cipher" "chacha20,aes,blowfish,3des,WARN"
-            _ensure_kv_setting "$session_file" "KEX" "ecdh,dh-gex-sha256,dh-group14-sha1,rsa,WARN"
-            _ensure_kv_setting "$session_file" "HostKey" "ed25519,ecdsa,rsa,dsa,WARN"
+            # Algorithm preferences
+            _ensure_kv_setting "$session_file" "Cipher"      "chacha20,aes,blowfish,3des,WARN"
+            _ensure_kv_setting "$session_file" "KEX"         "ecdh,dh-gex-sha256,dh-group14-sha1,rsa,WARN"
+            _ensure_kv_setting "$session_file" "HostKey"     "ed25519,ecdsa,rsa,dsa,WARN"
+            # Per-session security settings (mirrors windows/putty_hardening.ps1)
+            _ensure_kv_setting "$session_file" "AgentFwd"    "0"
+            _ensure_kv_setting "$session_file" "X11Forward"  "0"
+            _ensure_kv_setting "$session_file" "Compression" "0"
+            _ensure_kv_setting "$session_file" "RekeyBytes"  "1g"
+            _ensure_kv_setting "$session_file" "RekeyTime"   "60"
             hardened=$((hardened + 1))
         done
 
         if [ "$hardened" -eq 0 ]; then
             log_warn "No PuTTY session files were found to harden."
         else
-            log_success "Hardened $hardened PuTTY session file(s). Backup: $backup_dir"
+            log_success "Hardened $hardened PuTTY session file(s) ($platform, algorithms + per-session settings). Backup: $backup_dir"
         fi
         return 0
     fi

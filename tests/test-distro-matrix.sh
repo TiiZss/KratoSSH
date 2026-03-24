@@ -122,4 +122,40 @@ run_case "Debian" "9" "fail"
 run_case "Fedora Linux" "35" "fail"
 run_case "Red Hat Enterprise Linux" "7" "fail"
 
+# --- Client mode tests ---
+run_client_case() {
+    local os_name="$1"
+    local os_version="$2"
+    local expected="$3"
+
+    export KRATOSSH_TEST_OS_NAME="$os_name"
+    export KRATOSSH_TEST_OS_VERSION="$os_version"
+
+    set +e
+    output="$(bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app openssh 2>&1)"
+    status=$?
+    set -e
+
+    if [ "$expected" = "ok" ] && [ "$status" -ne 0 ]; then
+        echo "$output"
+        echo "Expected client hardening success for $os_name $os_version"
+        exit 1
+    fi
+
+    if [ "$expected" = "fail" ] && [ "$status" -eq 0 ]; then
+        echo "$output"
+        echo "Expected client hardening failure for $os_name $os_version"
+        exit 1
+    fi
+}
+
+run_client_case "Ubuntu" "22"                   "ok"
+run_client_case "Debian" "12"                   "ok"
+run_client_case "Fedora Linux" "36"             "ok"
+run_client_case "Red Hat Enterprise Linux" "9"  "ok"
+run_client_case "Rocky Linux" "9"               "ok"
+run_client_case "Alpine Linux" "3"              "ok"
+run_client_case "AlmaLinux" "9"                 "ok"
+run_client_case "Fedora Linux" "35"             "fail"
+
 echo "Distro family matrix tests passed."
