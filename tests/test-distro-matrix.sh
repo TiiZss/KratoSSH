@@ -105,15 +105,21 @@ run_case "Debian" "12" "ok"
 run_case "Rocky Linux" "9" "ok"
 run_case "Fedora Linux" "36" "ok"
 run_case "Alpine Linux" "3" "ok"
+run_case "Red Hat Enterprise Linux" "9" "ok"
+run_case "Red Hat Enterprise Linux" "10" "ok"
+run_case "Red Hat Enterprise Linux" "8" "ok"
 
 # Normalized aliases
 run_case "Linux Mint" "21" "ok"
 run_case "Kali GNU/Linux" "2024" "ok"
 run_case "Parrot Security" "6" "ok"
+run_case "AlmaLinux" "9" "ok"
+run_case "Oracle Linux Server" "9" "ok"
 
 # Unsupported boundaries
 run_case "Ubuntu" "13" "fail"
 run_case "Debian" "9" "fail"
 run_case "Fedora Linux" "35" "fail"
+run_case "Red Hat Enterprise Linux" "7" "fail"
 
 echo "Distro family matrix tests passed."

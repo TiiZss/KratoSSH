@@ -78,7 +78,10 @@ function detect_os() {
 	fi
 
 	#Corta name si tiene un espacio y filtra algunas distros que tienen la misma instalación. La salida "Debian GNU/Linux" la dejaría en "Debian"
-	if [[ $name == *"Red"* ]]; then
+	if [[ $name == *"Red Hat"* ]]; then
+		name="RHEL"
+		log_info "Detectado Red Hat Enterprise Linux $version_num"
+	elif [[ $name == *"Red"* ]]; then
 		name="CentOS"
 	elif [[ $name == *"Mint"* ]]; then
 		name="Ubuntu"

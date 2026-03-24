@@ -25,10 +25,30 @@ $hostKey = 'ed25519,ecdsa,rsa,dsa,WARN'
 
 $hardened = 0
 Get-ChildItem -Path $sessionRoot | ForEach-Object {
-    Set-ItemProperty -Path $_.PSPath -Name 'KEX' -Type String -Value $kex
-    Set-ItemProperty -Path $_.PSPath -Name 'Cipher' -Type String -Value $cipher
-    Set-ItemProperty -Path $_.PSPath -Name 'HostKey' -Type String -Value $hostKey
+    $s = $_.PSPath
+
+    # Algorithm preferences per session
+    Set-ItemProperty -Path $s -Name 'KEX'     -Type String -Value $kex
+    Set-ItemProperty -Path $s -Name 'Cipher'  -Type String -Value $cipher
+    Set-ItemProperty -Path $s -Name 'HostKey' -Type String -Value $hostKey
+
+    # Per-session security hardening
+    # Disable forwarding to reduce attack surface
+    Set-ItemProperty -Path $s -Name 'AgentFwd'      -Type DWord -Value 0
+    Set-ItemProperty -Path $s -Name 'X11Forward'    -Type DWord -Value 0
+    Set-ItemProperty -Path $s -Name 'GSSAPIFwdTrust' -Type DWord -Value 0
+
+    # Disable compression (prevents CRIME-like attacks on interactive sessions)
+    Set-ItemProperty -Path $s -Name 'Compression' -Type DWord -Value 0
+
+    # Re-key after 1 GiB of data or 60 minutes, whichever comes first
+    Set-ItemProperty -Path $s -Name 'RekeyBytes' -Type String -Value '1g'
+    Set-ItemProperty -Path $s -Name 'RekeyTime'  -Type String -Value '60'
+
+    # Warn on host key change (0=no, 1=add new, 2=warn-on-change)
+    Set-ItemProperty -Path $s -Name 'HostKeyWarning' -Type DWord -Value 2
+
     $hardened++
 }
 
-Write-Host "[KratoSSH] Hardened $hardened PuTTY session(s). Backup: $backupDir"
+Write-Host "[KratoSSH] Hardened $hardened PuTTY session(s) (algorithms + per-session settings). Backup: $backupDir"

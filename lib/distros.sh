@@ -527,3 +527,61 @@ function AlpineC() {
     log_success "Aplicando SSH Client Hardening para Alpine Linux ($version_num)..."
     apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
 }
+
+function RHEL() {
+    version_num=$1
+    if [ "$version_num" -lt 8 ]; then
+        log_error "Tu versión de RHEL ($version_num) es demasiado antigua. Se requiere RHEL 8+."
+        return 1
+    fi
+
+    log_success "Tu versión de RHEL ($version_num) es compatible."
+
+    case $version_num in
+        "10" | "9")
+            regeneratekeys || return 1
+            moduli || return 1
+            apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
+            ;;
+
+        "8")
+            regeneratekeys || return 1
+            if [ "$DRY_RUN" = false ]; then
+                local ssh_group
+                ssh_group=$(get_ssh_keys_group)
+                if [ -n "$ssh_group" ]; then
+                    chgrp "$ssh_group" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                    chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+                fi
+            else
+                log_info "[DRY-RUN] Would chgrp/chmod keys"
+            fi
+            moduli || return 1
+            if [ "$DRY_RUN" = false ]; then
+                cp /etc/crypto-policies/back-ends/opensshserver.config \
+                   /etc/crypto-policies/back-ends/opensshserver.config.orig
+                echo "CRYPTO_POLICY='-oCiphers=chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr -oMACs=hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com -oGSSAPIKexAlgorithms=gss-curve25519-sha256- -oKexAlgorithms=curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256 -oHostKeyAlgorithms=ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512 -oPubkeyAcceptedKeyTypes=ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512'" \
+                    > /etc/crypto-policies/back-ends/opensshserver.config
+            else
+                log_info "[DRY-RUN] Would update /etc/crypto-policies/back-ends/opensshserver.config"
+            fi
+            ;;
+
+        *)
+            log_error "Estas en RHEL version $version_num y no se ha implementado nada para ello todavía."
+            return 1
+            ;;
+    esac
+    restart_ssh || return 1
+}
+
+function RHELC() {
+    version_num=$1
+    if [ "$version_num" -lt 8 ]; then
+        log_error "Tu versión de RHEL ($version_num) es demasiado antigua. Se requiere RHEL 8+."
+        return 1
+    fi
+
+    log_success "Tu versión de RHEL ($version_num) es compatible."
+    apply_client_hardening "$SSH_CIPHERS" "$SSH_KEX" "$SSH_MACS" "$SSH_HOST_KEYS"
+}

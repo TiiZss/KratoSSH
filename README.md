@@ -43,7 +43,10 @@ Server hardening matrix:
 | Ubuntu | 14+ | Supported |
 | Debian | 10+ | Supported |
 | CentOS | 7-8 | Supported |
-| Rocky Linux | 9+ | Supported |
+| RHEL | 8/9/10 | Supported |
+| Rocky Linux | 9/10 | Supported |
+| AlmaLinux | 9/10 | Supported (normalizes to Rocky) |
+| Oracle Linux | 9/10 | Supported (normalizes to Rocky) |
 | Amazon Linux | 2023+ | Supported |
 | Fedora | 36+ | Supported |
 | openSUSE | Leap/Tumbleweed | Supported |
@@ -58,15 +61,17 @@ Client hardening matrix:
 | Client | Platform | Status |
 |---|---|---|
 | OpenSSH | Linux distros listed above | Supported |
-| PuTTY | Linux session files | Supported |
-| PuTTY | Windows/WSL (PowerShell) | Supported (MVP) |
-| Bitvise | Windows/WSL (PowerShell) | Supported (MVP) |
+| PuTTY | Linux session files (`~/.putty/sessions/`) | Supported |
+| PuTTY | Windows/WSL (PowerShell, per-session registry) | Supported |
+| Bitvise | Windows/WSL (PowerShell, global + per-profile XML) | Supported |
 
 Normalization/fallback policy:
 
 * Linux Mint is normalized to Ubuntu equivalents (18->16, 19->18, 20->20, 21->22, 22->24).
 * Kali is normalized to Debian 12 profile.
 * Parrot OS is normalized to Debian profile by major version.
+* AlmaLinux and Oracle Linux are normalized to the Rocky Linux profile for the same major version.
+* RHEL is detected by name before the generic CentOS fallback and routed to its own function.
 * Unsupported or too-old distro/version combinations fail fast with non-zero exit.
 
 ## How To
@@ -192,5 +197,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Extend PuTTY/Bitvise Windows hardening with per-session algorithm enforcement.
-* Add RHEL 9/10 and AlmaLinux to the supported server matrix.
+* Extend PuTTY session enforcement to non-Windows environments (macOS native session files).
+* Add Fedora Client (`FedoraC`) to the `--type client` flow.
