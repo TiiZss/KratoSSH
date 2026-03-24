@@ -157,7 +157,18 @@ You have to be root or use sudo to run it
 
 Note: if your system has /etc/ssh/sshd_config.d but the Include directive is missing in /etc/ssh/sshd_config, KratoSSH now enables it safely (with validation and rollback).
 
-## Latest release highlights (v20260324_1105)
+## Latest release highlights (v20260324_1210)
+
+- Added `--fix-port [PORT]` to combine crypto hardening with perimeter port correction (including restoring port 22) in a single `--fix` run.
+- Added `--client-app [openssh|putty|bitvise]` to select the SSH client hardening target explicitly.
+- Added initial PuTTY client hardening: patches `~/.putty/sessions/*` on Linux and runs `windows/putty_hardening.ps1` on Windows/WSL.
+- Added initial Bitvise client hardening via `windows/bitvise_hardening.ps1` on Windows/WSL.
+- Multiple KratoSSH hardening blocks (e.g. crypto + perimeter) now coexist safely in the drop-in config without overwriting each other.
+- Unsupported or too-old distro/version combinations now exit with a non-zero code (fail fast) instead of silently succeeding.
+- Strict CLI argument validation for `--fix-port` and `--client-app` (fails early on missing or empty values).
+- New test suites for PuTTY/Bitvise, distro fail-fast, distro family matrix (including Mint/Kali/Parrot aliases), and CLI argument validation.
+
+### Previous release (v20260324_1105)
 
 - Added `--fix` and `--verify` operational flows to harden and validate SSH state end-to-end.
 - Improved transactional safety with rollback behavior when configuration validation fails.
@@ -180,5 +191,6 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
-## Next machines / steps
-* Include other distributions
+## Next steps
+* Extend PuTTY/Bitvise Windows hardening with per-session algorithm enforcement.
+* Add RHEL 9/10 and AlmaLinux to the supported server matrix.
