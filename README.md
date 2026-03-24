@@ -243,5 +243,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add `--audit-client --json` output for CI parsing.
-* Add registry-read audit support for PuTTY saved sessions on native Windows (HKCU session tree).
+* Add `--audit-client --json-pretty` mode with stable ordering for deterministic CI diffs.
+* Add native Windows file-based profile discovery for `SecureCRT` and `Termius` in audit mode (without relying on Linux paths).
