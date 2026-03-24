@@ -71,6 +71,8 @@ Client hardening matrix:
 | WinSCP | Windows/WSL (PowerShell, registry + portable INI) | Supported |
 | Termius | Linux/macOS (`storage.json` vault, via python3) | Supported |
 | Termius | Windows/WSL (PowerShell, `storage.json` vault) | Supported |
+| MobaXterm | Linux/macOS (`MobaXterm.ini`, `[SSH*]` sections) | Supported |
+| MobaXterm | Windows/WSL (PowerShell, `MobaXterm.ini`) | Supported |
 
 Normalization/fallback policy:
 
@@ -204,5 +206,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add `MobaXterm` client hardening support (INI session file, `[SSH]` section).
-* Add central `--list-clients` flag to enumerate all supported client apps.
+* Add `mosh` + `tmux` hardening guidance page (SSH flags and config snippets).
+* Add `--audit-client` flag for read-only client config inspection without making changes.

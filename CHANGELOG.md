@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2026-03-24] - v20260324_1400
+## [2026-03-24] - v20260324_1430
+### Added
+- **Client hardening**: Added `--client-app mobaxterm` — on Linux/macOS patches `[SSH*]` sections in `MobaXterm.ini` (`SSH_Kex`, `SSH_Cipher`, `SSH_MAC`, `SSH_HostKey`, `SSH_AgentFwd=0`); on Windows/WSL delegates to `windows/mobaxterm_hardening.ps1` which locates the INI in `%APPDATA%\MobaXterm\`, `Documents\MobaXterm\`, and beside the executable.
+- **CLI**: Added `--list-clients` flag: prints all supported `--client-app` values (`bitvise macos-ssh mobaxterm openssh putty securecrt termius winscp`) and exits 0.
+- **Testing**: Added MobaXterm Linux INI tests (`SSH_Kex`, `SSH_AgentFwd`), MobaXterm Windows fallback test, and `--list-clients` completeness test (checks all 8 clients are listed).
+
+### Changed
+- **CLI**: Help text for `--client-app` now dynamically lists all supported values via `list_supported_clients()`.
+- **README**: Updated client hardening matrix with MobaXterm rows. Updated Next steps.
 ### Added
 - **Client hardening**: Added `--client-app winscp` — on Linux/macOS patches per-session keys (`KexList`, `CipherList`, `MacList`, `HostKeyList`, `AgentFwd`) in portable `winscp.ini` under `~/.config/` or `~/.local/share/`; on Windows/WSL delegates to `windows/winscp_hardening.ps1` which patches `HKCU\Software\Martin Prikryl\WinSCP 2\Sessions` registry keys and any portable `WinSCP.ini` files.
 - **Client hardening**: Added `--client-app termius` — on Linux/macOS uses python3 to patch `storage.json` setting `kex_algorithms`, `ciphers`, `macs`, `host_key_algorithms`, `forward_agent: false`, `forward_x11: false` on all hosts and groups; on Windows/WSL delegates to `windows/termius_hardening.ps1` which does the same via PowerShell `ConvertFrom-Json`/`ConvertTo-Json`.

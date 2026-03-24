@@ -337,3 +337,82 @@ PYEOF
     # Windows/WSL: PowerShell JSON patch
     _run_windows_hardening_script "$script_dir/windows/termius_hardening.ps1"
 }
+
+function apply_mobaxterm_hardening() {
+    local script_dir="$1"
+
+    # Linux/macOS: patch MobaXterm.ini if present in standard locations
+    local ini_candidates=(
+        "$HOME/.config/MobaXterm/MobaXterm.ini"
+        "$HOME/.MobaXterm/MobaXterm.ini"
+    )
+
+    local ini_path
+    for ini_path in "${ini_candidates[@]}"; do
+        [ -f "$ini_path" ] || continue
+
+        log_info "Detected MobaXterm INI at $ini_path"
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would harden MobaXterm INI at $ini_path"
+            return 0
+        fi
+
+        local backup="${ini_path}.kratossh_$(date +%Y%m%d_%H%M%S).bak"
+        cp "$ini_path" "$backup"
+        log_info "Backed up $ini_path to $backup"
+
+        # Process [SSH*] sections: patch SSH_Kex, SSH_Cipher, SSH_MAC,
+        # SSH_HostKey, SSH_AgentFwd
+        local tmp
+        tmp="$(mktemp)"
+        local in_ssh=0
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^\[SSH ]]; then
+                in_ssh=1
+                printf '%s\n' "$line" >> "$tmp"
+                continue
+            fi
+            if [[ "$line" =~ ^\[ ]] && [[ ! "$line" =~ ^\[SSH ]]; then
+                in_ssh=0
+            fi
+
+            if [ "$in_ssh" -eq 1 ]; then
+                if [[ "$line" =~ ^SSH_Kex= ]]; then
+                    printf 'SSH_Kex=curve25519-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\n' >> "$tmp"
+                    continue
+                fi
+                if [[ "$line" =~ ^SSH_Cipher= ]]; then
+                    printf 'SSH_Cipher=chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr\n' >> "$tmp"
+                    continue
+                fi
+                if [[ "$line" =~ ^SSH_MAC= ]]; then
+                    printf 'SSH_MAC=hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com\n' >> "$tmp"
+                    continue
+                fi
+                if [[ "$line" =~ ^SSH_HostKey= ]]; then
+                    printf 'SSH_HostKey=ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n' >> "$tmp"
+                    continue
+                fi
+                if [[ "$line" =~ ^SSH_AgentFwd= ]]; then
+                    printf 'SSH_AgentFwd=0\n' >> "$tmp"
+                    continue
+                fi
+            fi
+            printf '%s\n' "$line" >> "$tmp"
+        done < "$ini_path"
+
+        mv "$tmp" "$ini_path"
+        log_success "MobaXterm INI hardened at $ini_path"
+        return 0
+    done
+
+    # Windows/WSL: PowerShell INI patcher
+    _run_windows_hardening_script "$script_dir/windows/mobaxterm_hardening.ps1"
+}
+
+# Returns a sorted space-separated list of all supported --client-app values
+function list_supported_clients() {
+    printf 'bitvise macos-ssh mobaxterm openssh putty securecrt termius winscp\n'
+}

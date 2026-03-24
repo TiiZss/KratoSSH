@@ -241,8 +241,14 @@ function run_hardening() {
                     die "Termius client hardening failed"
                 fi
                 ;;
+            mobaxterm)
+                log_info "Applying MobaXterm client hardening profile..."
+                if ! apply_mobaxterm_hardening "$SCRIPT_DIR"; then
+                    die "MobaXterm client hardening failed"
+                fi
+                ;;
             *)
-                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise, securecrt, macos-ssh, winscp, termius)"
+                die "Unknown client app '$CLIENT_APP' (valid: $(list_supported_clients))"
                 ;;
         esac
     else
@@ -382,6 +388,10 @@ while [[ $# -gt 0 ]]; do
             FIX_PORT="$2"
             shift 2
             ;;
+        --list-clients)
+            list_supported_clients
+            exit 0
+            ;;
         --client-app)
             require_option_value "--client-app" "${2:-}"
             CLIENT_APP="$(normalize_client_app "$2")"
@@ -408,7 +418,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --verify            Run post-hardening verification checks"
             echo "  --fix               Apply server crypto hardening (auto server mode)"
             echo "  --fix-port [PORT]   With --fix, also set SSH port and perimeter rules"
-            echo "  --client-app [APP]  Client app: openssh|putty|bitvise (with --type client)"
+            echo "  --client-app [APP]  Client app (with --type client): $(list_supported_clients)"
+            echo "  --list-clients      Print all supported client-app values and exit"
             echo "  --fast              Skip time-consuming moduli generation"
             echo "  --force-regenerate  Force host key rotation during hardening"
             exit 0
