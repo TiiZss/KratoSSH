@@ -471,6 +471,62 @@ if ! grep -q "\"pass\"$" "$CSV_OUT"; then
     exit 1
 fi
 
+# ── --export-html output test ────────────────────────────────────────────────
+echo "Running --audit-client --export-html output test..."
+
+HTML_OUT="$TMP_DIR/audit_export.html"
+set +e
+bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --export-html "$HTML_OUT" 2>&1
+html_status=$?
+set -e
+
+if [ "$html_status" -ne 0 ]; then
+    echo "Expected --export-html to exit 0 on hardened openssh config"
+    exit 1
+fi
+
+if [ ! -f "$HTML_OUT" ]; then
+    echo "--export-html: HTML file not created at $HTML_OUT"
+    exit 1
+fi
+
+if ! grep -qi "<table>" "$HTML_OUT"; then
+    cat "$HTML_OUT"
+    echo "--export-html: missing table markup"
+    exit 1
+fi
+
+if ! grep -q "openssh" "$HTML_OUT"; then
+    cat "$HTML_OUT"
+    echo "--export-html: missing openssh row"
+    exit 1
+fi
+
+# ── --export-xlsx output test ────────────────────────────────────────────────
+echo "Running --audit-client --export-xlsx output test..."
+
+XLSX_OUT="$TMP_DIR/audit_export.xlsx"
+set +e
+bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --export-xlsx "$XLSX_OUT" 2>&1
+xlsx_status=$?
+set -e
+
+if [ "$xlsx_status" -ne 0 ]; then
+    echo "Expected --export-xlsx to exit 0 on hardened openssh config"
+    exit 1
+fi
+
+if [ ! -f "$XLSX_OUT" ]; then
+    echo "--export-xlsx: XLSX file not created at $XLSX_OUT"
+    exit 1
+fi
+
+# XLSX files are ZIP containers and start with 'PK'
+if [ "$(head -c 2 "$XLSX_OUT" 2>/dev/null)" != "PK" ]; then
+    echo "--export-xlsx: output does not look like a valid XLSX/ZIP file"
+    exit 1
+fi
+
 # ── --cron-audit --dry-run test ───────────────────────────────────────────────
 echo "Running --cron-audit --dry-run test..."
 

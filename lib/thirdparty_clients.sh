@@ -448,12 +448,13 @@ function _audit_missing_source() {
 function _audit_json_record() {
     local label="$1"
     local status="$2"  # pass | fail | warn
-    [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ] || return 0
+    [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ] || [ -n "${AUDIT_EXPORT_XLSX:-}" ] || [ -n "${AUDIT_EXPORT_HTML:-}" ] || return 0
     if [ -n "${AUDIT_FILTER:-}" ] && [ "$status" != "$AUDIT_FILTER" ]; then
         return 0
     fi
     [ -n "${_AUDIT_JSON_TMP:-}" ] || return 0
-    local clean_label="${label//\"/\\\"}"
+    local clean_label="${label//\\/\\\\}"
+    clean_label="${clean_label//\"/\\\"}"
     local clean_client="${_AUDIT_CURRENT_CLIENT:-unknown}"
     printf '{"client":"%s","check":"%s","status":"%s"}\n' \
         "$clean_client" "$clean_label" "$status" >> "$_AUDIT_JSON_TMP"
@@ -782,7 +783,7 @@ function audit_client_hardening() {
 
     # Initialise JSON temp file when JSON output or summary mode is active
     _AUDIT_JSON_TMP=""
-    if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ]; then
+    if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ] || [ -n "${AUDIT_EXPORT_XLSX:-}" ] || [ -n "${AUDIT_EXPORT_HTML:-}" ]; then
         _AUDIT_JSON_TMP="$(mktemp)"
     fi
 
@@ -923,7 +924,120 @@ function audit_client_hardening() {
         fi
     fi
 
-    # Unified cleanup of temp file used by JSON/summary/CSV blocks
+    # Export HTML when --export-html is requested
+    if [ -n "${AUDIT_EXPORT_HTML:-}" ] && [ -n "${_AUDIT_JSON_TMP:-}" ] && [ -f "$_AUDIT_JSON_TMP" ]; then
+        {
+            printf '<!doctype html>\n'
+            printf '<html><head><meta charset="utf-8"><title>KratoSSH Audit Export</title>'
+            printf '<style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%%}th,td{border:1px solid #ddd;padding:8px}th{background:#f2f2f2;text-align:left}.pass{color:#0a7d1c}.fail{color:#b00020}.warn{color:#9c6b00}</style>'
+            printf '</head><body>\n'
+            printf '<h2>KratoSSH Audit Export</h2>\n'
+            printf '<table><thead><tr><th>client</th><th>check</th><th>status</th></tr></thead><tbody>\n'
+            while IFS= read -r jline; do
+                local h_c h_k h_s
+                h_c="$(printf '%s' "$jline" | sed 's/.*"client":"//;s/".*//')"
+                h_k="$(printf '%s' "$jline" | sed 's/.*"check":"//;s/".*//')"
+                h_s="$(printf '%s' "$jline" | sed 's/.*"status":"//;s/".*//')"
+                h_c="$(printf '%s' "$h_c" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')"
+                h_k="$(printf '%s' "$h_k" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')"
+                h_s="$(printf '%s' "$h_s" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')"
+                printf '<tr><td>%s</td><td>%s</td><td class="%s">%s</td></tr>\n' "$h_c" "$h_k" "$h_s" "$h_s"
+            done < "$_AUDIT_JSON_TMP"
+            printf '</tbody></table>\n'
+            printf '</body></html>\n'
+        } > "$AUDIT_EXPORT_HTML"
+
+        if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ]; then
+            log_success "Audit results exported to $AUDIT_EXPORT_HTML" >&2
+        else
+            log_success "Audit results exported to $AUDIT_EXPORT_HTML"
+        fi
+    fi
+
+    # Export XLSX when --export-xlsx is requested
+    if [ -n "${AUDIT_EXPORT_XLSX:-}" ] && [ -n "${_AUDIT_JSON_TMP:-}" ] && [ -f "$_AUDIT_JSON_TMP" ]; then
+        if ! command -v zip >/dev/null 2>&1; then
+            log_error "zip is required to generate XLSX export"
+            fail=1
+        else
+            local xlsx_tmp
+            xlsx_tmp="$(mktemp -d)"
+
+            mkdir -p "$xlsx_tmp/_rels" "$xlsx_tmp/xl/_rels" "$xlsx_tmp/xl/worksheets"
+
+            cat > "$xlsx_tmp/[Content_Types].xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>
+EOF
+
+            cat > "$xlsx_tmp/_rels/.rels" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>
+EOF
+
+            cat > "$xlsx_tmp/xl/workbook.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Audit" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>
+EOF
+
+            cat > "$xlsx_tmp/xl/_rels/workbook.xml.rels" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>
+EOF
+
+            {
+                printf '%s\n' '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                printf '%s\n' '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+
+                # Header row
+                printf '%s\n' '<row r="1"><c r="A1" t="inlineStr"><is><t>client</t></is></c><c r="B1" t="inlineStr"><is><t>check</t></is></c><c r="C1" t="inlineStr"><is><t>status</t></is></c></row>'
+
+                local rid=2
+                while IFS= read -r jline; do
+                    local xc xk xs
+                    xc="$(printf '%s' "$jline" | sed 's/.*"client":"//;s/".*//')"
+                    xk="$(printf '%s' "$jline" | sed 's/.*"check":"//;s/".*//')"
+                    xs="$(printf '%s' "$jline" | sed 's/.*"status":"//;s/".*//')"
+                    xc="$(printf '%s' "$xc" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+                    xk="$(printf '%s' "$xk" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+                    xs="$(printf '%s' "$xs" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+                    printf '<row r="%d"><c r="A%d" t="inlineStr"><is><t>%s</t></is></c><c r="B%d" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" t="inlineStr"><is><t>%s</t></is></c></row>\n' \
+                        "$rid" "$rid" "$xc" "$rid" "$xk" "$rid" "$xs"
+                    rid=$((rid + 1))
+                done < "$_AUDIT_JSON_TMP"
+
+                printf '%s\n' '</sheetData></worksheet>'
+            } > "$xlsx_tmp/xl/worksheets/sheet1.xml"
+
+            if (cd "$xlsx_tmp" && zip -q -r "$AUDIT_EXPORT_XLSX" .); then
+                if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ]; then
+                    log_success "Audit results exported to $AUDIT_EXPORT_XLSX" >&2
+                else
+                    log_success "Audit results exported to $AUDIT_EXPORT_XLSX"
+                fi
+            else
+                log_error "Failed to generate XLSX export at $AUDIT_EXPORT_XLSX"
+                fail=1
+            fi
+
+            rm -rf "$xlsx_tmp"
+        fi
+    fi
+
+    # Unified cleanup of temp file used by JSON/summary/export blocks
     [ -n "${_AUDIT_JSON_TMP:-}" ] && rm -f "$_AUDIT_JSON_TMP"
 
     if [ "$fail" -eq 0 ]; then

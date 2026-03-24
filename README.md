@@ -116,6 +116,8 @@ You have to be root or use sudo to run it
 * `--json-pretty`: With `--audit-client`, emit stable sorted pretty JSON for deterministic CI diffs.
 * `--summary`: With `--audit-client`, print a per-client pass/fail/warn count table.
 * `--export-csv [FILE]`: With `--audit-client`, write audit results as a RFC 4180 CSV file.
+* `--export-html [FILE]`: With `--audit-client`, write audit results as an HTML report table.
+* `--export-xlsx [FILE]`: With `--audit-client`, write audit results as an XLSX spreadsheet.
 * `--filter [STATUS]`: With `--audit-client`, include only `pass`, `fail`, or `warn` rows in JSON/CSV/summary output.
 * `--cron-audit`: Install a system cron job (`/etc/cron.d/kratossh-audit`) that runs `--audit` periodically. Requires root; use `--dry-run` to preview.
 * `--cron-schedule [S]`: Override the cron schedule string (default: `0 3 * * *`). Use with `--cron-audit`.
@@ -247,6 +249,13 @@ Run `shellcheck` locally if it is installed:
 
 ```bash
 shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
+```
+
+For Python tooling in this project, use `uv` virtual environments (instead of `pip` + manual `venv`):
+
+```bash
+uv venv .venv
+uv run python --version
 ```
 
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.

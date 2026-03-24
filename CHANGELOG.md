@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1900
+### Added
+- **CLI**: `--export-html [FILE]` for `--audit-client` to generate an HTML report table (`client`, `check`, `status`).
+- **CLI**: `--export-xlsx [FILE]` for `--audit-client` to generate an XLSX spreadsheet in the same run.
+- **Testing**: Added `--export-html` and `--export-xlsx` output tests in `tests/test-audit-client.sh`.
+
+### Changed
+- **Audit export internals**: XLSX export generation is now robust in shell environments by writing OpenXML parts and packing with `zip`.
+- **README**: Added `--export-html` / `--export-xlsx` options and documented Python environment workflow with `uv` (`uv venv .venv`).
+
 ## [2026-03-24] - v20260324_1835
 ### Added
 - **CLI**: `--filter [pass|fail|warn]` for `--audit-client` output selection. The filter applies to JSON (`--json` / `--json-pretty`), CSV (`--export-csv`), and summary (`--summary`) outputs.
