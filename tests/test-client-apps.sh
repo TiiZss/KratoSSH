@@ -330,4 +330,78 @@ echo "$termius_win_output" | grep -Fq 'windows/termius_hardening.ps1' || {
     exit 1
 }
 
+# ── MobaXterm Linux INI test ────────────────────────────────────────────────
+echo "Running MobaXterm Linux client hardening test..."
+
+mkdir -p "$HOME_DIR/.config/MobaXterm"
+cat > "$HOME_DIR/.config/MobaXterm/MobaXterm.ini" <<'EOF'
+[SSH_1]
+HostName=192.0.2.1
+SSH_Kex=diffie-hellman-group1-sha1
+SSH_AgentFwd=1
+
+[Bookmarks]
+EOF
+
+moba_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app mobaxterm 2>&1)"
+moba_status=$?
+
+if [ "$moba_status" -ne 0 ]; then
+    echo "$moba_output"
+    echo "MobaXterm Linux client hardening should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'SSH_Kex=curve25519-sha256' "$HOME_DIR/.config/MobaXterm/MobaXterm.ini" || {
+    echo "$moba_output"
+    echo "MobaXterm INI SSH_Kex was not updated"
+    exit 1
+}
+
+grep -Fq 'SSH_AgentFwd=0' "$HOME_DIR/.config/MobaXterm/MobaXterm.ini" || {
+    echo "$moba_output"
+    echo "MobaXterm INI SSH_AgentFwd was not disabled"
+    exit 1
+}
+
+# ── MobaXterm Windows fallback test ──────────────────────────────────────────
+echo "Running MobaXterm Windows fallback test..."
+
+rm -f "$HOME_DIR/.config/MobaXterm/MobaXterm.ini"
+
+moba_win_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app mobaxterm 2>&1)"
+moba_win_status=$?
+
+if [ "$moba_win_status" -ne 0 ]; then
+    echo "$moba_win_output"
+    echo "MobaXterm Windows fallback should have succeeded"
+    exit 1
+fi
+
+echo "$moba_win_output" | grep -Fq 'windows/mobaxterm_hardening.ps1' || {
+    echo "$moba_win_output"
+    echo "MobaXterm Windows fallback did not call mobaxterm_hardening.ps1"
+    exit 1
+}
+
+# ── --list-clients test ────────────────────────────────────────────────────────
+echo "Running --list-clients test..."
+
+list_output="$(bash "$REPO_DIR/KratoSSH.sh" --list-clients 2>&1)"
+list_status=$?
+
+if [ "$list_status" -ne 0 ]; then
+    echo "$list_output"
+    echo "--list-clients should exit 0"
+    exit 1
+fi
+
+for expected_client in bitvise macos-ssh mobaxterm openssh putty securecrt termius winscp; do
+    if ! echo "$list_output" | grep -Fq "$expected_client"; then
+        echo "$list_output"
+        echo "--list-clients missing expected client: $expected_client"
+        exit 1
+    fi
+done
+
 echo "Third-party client hardening tests passed."
