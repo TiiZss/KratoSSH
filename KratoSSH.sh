@@ -22,6 +22,7 @@ CLIENT_APP="openssh"
 AUDIT_CLIENT=false
 AUDIT_CLIENT_STRICT=false
 AUDIT_JSON=false
+AUDIT_JSON_PRETTY=false
 
 function require_option_value() {
     local option_name="$1"
@@ -388,6 +389,11 @@ while [[ $# -gt 0 ]]; do
             AUDIT_JSON=true
             shift
             ;;
+        --json-pretty)
+            AUDIT_JSON=true
+            AUDIT_JSON_PRETTY=true
+            shift
+            ;;
         --verify)
             # verify_hardening_state performs local post-hardening checks
             verify_hardening_state
@@ -433,6 +439,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --audit-client      Run read-only client profile audit (use with --client-app [APP] or all)"
             echo "  --strict            With --audit-client, fail when profile sources are missing/unavailable"
             echo "  --json              With --audit-client, emit JSON array to stdout (human log to stderr)"
+            echo "  --json-pretty       With --audit-client, emit stable sorted pretty JSON for deterministic CI diffs"
             echo "  --verify            Run post-hardening verification checks"
             echo "  --fix               Apply server crypto hardening (auto server mode)"
             echo "  --fix-port [PORT]   With --fix, also set SSH port and perimeter rules"

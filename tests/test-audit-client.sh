@@ -37,13 +37,6 @@ exit 2
 EOF
 chmod +x "$MOCK_BIN/powershell.exe"
 
-# Mock powershell.exe: exits 2 (path missing) - fast deterministic tests
-cat > "$MOCK_BIN/powershell.exe" <<'EOF'
-#!/bin/bash
-exit 2
-EOF
-chmod +x "$MOCK_BIN/powershell.exe"
-
 export PATH="$MOCK_BIN:$PATH"
 export HOME="$HOME_DIR"
 export KRATOSSH_TEST_OS_NAME="Ubuntu"
@@ -51,6 +44,7 @@ export KRATOSSH_TEST_OS_VERSION="22"
 
 echo "Running --audit-client OpenSSH success test..."
 cat > "$HOME_DIR/.ssh/config" <<'EOF'
+# BEGIN KratoSSH macOS hardening
 Host *
     KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
     Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
@@ -58,6 +52,8 @@ Host *
     ForwardAgent no
     ForwardX11 no
     Compression no
+    RekeyLimit 1G 60m
+# END KratoSSH macOS hardening
 EOF
 
 set +e
@@ -219,5 +215,60 @@ if ! printf '%s' "$json_fail_output" | grep -q '"status":"fail"'; then
     echo "Expected at least one fail entry in JSON output for insecure ForwardAgent"
     exit 1
 fi
+
+# ── --json-pretty deterministic ordering test ────────────────────────────────
+echo "Running --audit-client --json-pretty deterministic ordering test..."
+
+# Ensure openssh checks are in a passing state before auditing all clients.
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+# BEGIN KratoSSH macOS hardening
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent no
+    ForwardX11 no
+    Compression no
+    RekeyLimit 1G 60m
+# END KratoSSH macOS hardening
+EOF
+
+set +e
+pretty_all_1="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app all --json-pretty 2>/dev/null)"
+pretty_status_1=$?
+pretty_all_2="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app all --json-pretty 2>/dev/null)"
+pretty_status_2=$?
+set -e
+
+if [ "$pretty_status_1" -ne 0 ] || [ "$pretty_status_2" -ne 0 ]; then
+    echo "$pretty_all_1"
+    echo "$pretty_all_2"
+    echo "Expected --json-pretty all to succeed in non-strict mode"
+    exit 1
+fi
+
+# Must be pretty (multi-line object list with indentation)
+if ! printf '%s' "$pretty_all_1" | grep -q '^  {"client":'; then
+    echo "$pretty_all_1"
+    echo "--json-pretty output is not indented pretty JSON"
+    exit 1
+fi
+
+# Must be deterministic between identical runs
+if [ "$pretty_all_1" != "$pretty_all_2" ]; then
+    echo "$pretty_all_1"
+    echo "---"
+    echo "$pretty_all_2"
+    echo "--json-pretty output is not deterministic between runs"
+    exit 1
+fi
+
+# Sorted by line: first client should be bitvise in current client set
+first_client_line="$(printf '%s\n' "$pretty_all_1" | grep '"client":' | head -n 1)"
+echo "$first_client_line" | grep -Fq '"client":"bitvise"' || {
+    echo "$pretty_all_1"
+    echo "--json-pretty output is not sorted deterministically"
+    exit 1
+}
 
 echo "--audit-client tests passed."

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1645
+### Added
+- **CLI**: Added `--json-pretty` for `--audit-client` to emit stable sorted pretty JSON output.
+- **Testing**: Extended `tests/test-audit-client.sh` with `--json-pretty` deterministic ordering tests (indentation, stable repeated output, sorted first client line).
+
+### Changed
+- **JSON output**: `--json` now emits compact JSON array; `--json-pretty` emits sorted pretty JSON for deterministic CI diffs.
+- **README**: Updated options list with `--json`/`--json-pretty` and refreshed Next steps.
+
 ## [2026-03-24] - v20260324_1600
 ### Added
 - **CLI**: Added `--json` flag for `--audit-client`: emits a JSON array of `{client, check, status}` objects to stdout; human-readable log goes to stderr.

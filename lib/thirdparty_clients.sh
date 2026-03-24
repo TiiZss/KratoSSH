@@ -757,16 +757,39 @@ function audit_client_hardening() {
             lines+=("$line")
         done < "$_AUDIT_JSON_TMP"
         rm -f "$_AUDIT_JSON_TMP"
-        printf '[\n'
-        local i
-        for i in "${!lines[@]}"; do
-            if [ "$i" -lt $(( ${#lines[@]} - 1 )) ]; then
-                printf '  %s,\n' "${lines[$i]}"
-            else
-                printf '  %s\n' "${lines[$i]}"
-            fi
-        done
-        printf ']\n'
+
+        # Stable ordering mode for deterministic CI diffs.
+        if [ "${AUDIT_JSON_PRETTY:-false}" = true ] && [ "${#lines[@]}" -gt 0 ]; then
+            local sorted_lines=()
+            while IFS= read -r sline; do
+                sorted_lines+=("$sline")
+            done < <(printf '%s\n' "${lines[@]}" | LC_ALL=C sort)
+            lines=("${sorted_lines[@]}")
+        fi
+
+        if [ "${AUDIT_JSON_PRETTY:-false}" = true ]; then
+            printf '[\n'
+            local i
+            for i in "${!lines[@]}"; do
+                if [ "$i" -lt $(( ${#lines[@]} - 1 )) ]; then
+                    printf '  %s,\n' "${lines[$i]}"
+                else
+                    printf '  %s\n' "${lines[$i]}"
+                fi
+            done
+            printf ']\n'
+        else
+            # Compact JSON for low-bandwidth consumers.
+            printf '['
+            local j
+            for j in "${!lines[@]}"; do
+                if [ "$j" -gt 0 ]; then
+                    printf ','
+                fi
+                printf '%s' "${lines[$j]}"
+            done
+            printf ']\n'
+        fi
     fi
 
     if [ "$fail" -eq 0 ]; then
