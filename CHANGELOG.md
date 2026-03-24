@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1835
+### Added
+- **CLI**: `--filter [pass|fail|warn]` for `--audit-client` output selection. The filter applies to JSON (`--json` / `--json-pretty`), CSV (`--export-csv`), and summary (`--summary`) outputs.
+- **CLI**: Confirmed combined one-pass output mode for `--audit-client --json --export-csv [FILE]` (JSON to stdout + CSV file in the same run).
+- **Testing**: Added tests for `--filter fail` JSON behavior, `--filter pass` CSV behavior, invalid `--filter` value rejection, and combined `--json --export-csv` mode.
+
+### Changed
+- **README**: Added `--filter` option documentation and refreshed Next steps.
+
 ## [2026-03-24] - v20260324_1800
 ### Added
 - **CLI**: `--export-csv [FILE]` — writes `client,check,status` RFC 4180 CSV from `--audit-client` results. Works standalone or combined with `--json`/`--summary`.

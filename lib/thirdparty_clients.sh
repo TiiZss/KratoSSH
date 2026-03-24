@@ -449,6 +449,9 @@ function _audit_json_record() {
     local label="$1"
     local status="$2"  # pass | fail | warn
     [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ] || return 0
+    if [ -n "${AUDIT_FILTER:-}" ] && [ "$status" != "$AUDIT_FILTER" ]; then
+        return 0
+    fi
     [ -n "${_AUDIT_JSON_TMP:-}" ] || return 0
     local clean_label="${label//\"/\\\"}"
     local clean_client="${_AUDIT_CURRENT_CLIENT:-unknown}"

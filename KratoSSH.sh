@@ -25,6 +25,7 @@ AUDIT_JSON=false
 AUDIT_JSON_PRETTY=false
 AUDIT_SUMMARY=false
 AUDIT_EXPORT_CSV=""
+AUDIT_FILTER=""
 CRON_AUDIT=false
 CRON_SCHEDULE="0 3 * * *"
 CRON_EMAIL=""
@@ -408,6 +409,19 @@ while [[ $# -gt 0 ]]; do
             AUDIT_EXPORT_CSV="$2"
             shift 2
             ;;
+        --filter)
+            require_option_value "--filter" "${2:-}"
+            case "$2" in
+                pass|fail|warn)
+                    AUDIT_FILTER="$2"
+                    ;;
+                *)
+                    log_error "Invalid --filter value '$2' (use: pass|fail|warn)"
+                    exit 1
+                    ;;
+            esac
+            shift 2
+            ;;
         --cron-audit)
             CRON_AUDIT=true
             shift
@@ -474,6 +488,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --json-pretty       With --audit-client, emit stable sorted pretty JSON for deterministic CI diffs"
             echo "  --summary           With --audit-client, print a per-client pass/fail/warn count table"
             echo "  --export-csv [FILE] With --audit-client, write audit results as CSV to FILE"
+            echo "  --filter [STATUS]   With --audit-client, include only pass|fail|warn rows in JSON/CSV/summary"
             echo "  --cron-audit        Install a system cron job to run --audit periodically"
             echo "  --cron-schedule [S] Cron schedule string (default: '0 3 * * *', use with --cron-audit)"
             echo "  --cron-email [E]    Email address for audit reports (use with --cron-audit)"

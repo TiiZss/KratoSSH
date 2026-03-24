@@ -116,6 +116,7 @@ You have to be root or use sudo to run it
 * `--json-pretty`: With `--audit-client`, emit stable sorted pretty JSON for deterministic CI diffs.
 * `--summary`: With `--audit-client`, print a per-client pass/fail/warn count table.
 * `--export-csv [FILE]`: With `--audit-client`, write audit results as a RFC 4180 CSV file.
+* `--filter [STATUS]`: With `--audit-client`, include only `pass`, `fail`, or `warn` rows in JSON/CSV/summary output.
 * `--cron-audit`: Install a system cron job (`/etc/cron.d/kratossh-audit`) that runs `--audit` periodically. Requires root; use `--dry-run` to preview.
 * `--cron-schedule [S]`: Override the cron schedule string (default: `0 3 * * *`). Use with `--cron-audit`.
 * `--cron-email [E]`: Email address for per-run audit reports. Use with `--cron-audit`.
@@ -251,5 +252,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add `--audit-client --filter [pass|fail|warn]` to show only matching rows in JSON/CSV/pretty output.
-* Add `--audit-client --export-csv --json` combined mode to produce both outputs in one pass without re-running.
+* Add `--audit-client --filter-check [regex]` to filter rows by check label (`OpenSSH Ciphers`, `ForwardAgent`, etc.).
+* Add `--audit-client --export-ndjson [FILE]` streaming mode for log pipelines and SIEM ingestion.

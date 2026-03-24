@@ -532,4 +532,121 @@ if ! printf '%s' "$cron_rm_out" | grep -qi "Would remove\|cron"; then
     exit 1
 fi
 
+# ── --filter fail JSON test ───────────────────────────────────────────────────
+echo "Running --audit-client --filter fail JSON test..."
+
+# Force one failing check (ForwardAgent yes) to verify filter behavior
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent yes
+    ForwardX11 no
+    Compression no
+EOF
+
+set +e
+filter_fail_json="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --json --filter fail 2>/dev/null)"
+set -e
+
+if ! printf '%s' "$filter_fail_json" | grep -q '"status":"fail"'; then
+    echo "$filter_fail_json"
+    echo "--filter fail JSON did not include fail rows"
+    exit 1
+fi
+
+if printf '%s' "$filter_fail_json" | grep -q '"status":"pass"'; then
+    echo "$filter_fail_json"
+    echo "--filter fail JSON unexpectedly includes pass rows"
+    exit 1
+fi
+
+# ── --filter pass CSV test ────────────────────────────────────────────────────
+echo "Running --audit-client --filter pass CSV test..."
+
+CSV_FILTER_OUT="$TMP_DIR/audit_filter_pass.csv"
+
+# Harden config again so we have pass entries
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+# BEGIN KratoSSH macOS hardening
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent no
+    ForwardX11 no
+    Compression no
+    RekeyLimit 1G 60m
+# END KratoSSH macOS hardening
+EOF
+
+set +e
+bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --export-csv "$CSV_FILTER_OUT" --filter pass >/dev/null 2>&1
+filter_csv_status=$?
+set -e
+
+if [ "$filter_csv_status" -ne 0 ]; then
+    echo "--filter pass CSV command failed"
+    exit 1
+fi
+
+if grep -q '"fail"$' "$CSV_FILTER_OUT" || grep -q '"warn"$' "$CSV_FILTER_OUT"; then
+    cat "$CSV_FILTER_OUT"
+    echo "--filter pass CSV unexpectedly contains fail/warn rows"
+    exit 1
+fi
+
+# ── invalid --filter value test ───────────────────────────────────────────────
+echo "Running invalid --filter value test..."
+
+set +e
+invalid_filter_out="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --json --filter nope 2>&1)"
+invalid_filter_status=$?
+set -e
+
+if [ "$invalid_filter_status" -eq 0 ]; then
+    echo "$invalid_filter_out"
+    echo "Invalid --filter value should return non-zero"
+    exit 1
+fi
+
+echo "$invalid_filter_out" | grep -q "Invalid --filter value" || {
+    echo "$invalid_filter_out"
+    echo "Invalid --filter error message not found"
+    exit 1
+}
+
+# ── combined --json --export-csv one-pass test ───────────────────────────────
+echo "Running combined --json --export-csv test..."
+
+CSV_COMBINED_OUT="$TMP_DIR/audit_combined.csv"
+set +e
+combined_json_out="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --json --export-csv "$CSV_COMBINED_OUT" 2>/dev/null)"
+combined_status=$?
+set -e
+
+if [ "$combined_status" -ne 0 ]; then
+    echo "$combined_json_out"
+    echo "Combined --json --export-csv command failed"
+    exit 1
+fi
+
+if ! printf '%s' "$combined_json_out" | grep -q '^\['; then
+    echo "$combined_json_out"
+    echo "Combined mode did not emit JSON stdout"
+    exit 1
+fi
+
+if [ ! -f "$CSV_COMBINED_OUT" ]; then
+    echo "Combined mode did not create CSV file"
+    exit 1
+fi
+
+if ! head -n 1 "$CSV_COMBINED_OUT" | grep -q '^client,check,status$'; then
+    head -n 1 "$CSV_COMBINED_OUT"
+    echo "Combined mode CSV header invalid"
+    exit 1
+fi
+
 echo "--audit-client tests passed."
