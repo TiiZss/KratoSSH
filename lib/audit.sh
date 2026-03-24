@@ -56,13 +56,15 @@ function audit_system() {
     fi
     
     local ssh_port=22
+    local main_config
+    main_config="$(ssh_main_config)"
     if command -v sshd &>/dev/null; then
         local parsed_port=$(sshd -T 2>/dev/null | grep -i '^port ' | awk '{print $2}' | head -n 1)
         if [ -n "$parsed_port" ] && [[ "$parsed_port" =~ ^[0-9]+$ ]]; then
             ssh_port=$parsed_port
         fi
     else
-        local config_port=$(grep -i '^Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -n 1)
+        local config_port=$(grep -i '^Port ' "$main_config" 2>/dev/null | awk '{print $2}' | head -n 1)
         if [ -n "$config_port" ] && [[ "$config_port" =~ ^[0-9]+$ ]]; then
             ssh_port=$config_port
         fi
@@ -73,4 +75,123 @@ function audit_system() {
         log_info "Detected custom SSH port: $ssh_port"
     fi
     python3 "$audit_script" localhost -p "$ssh_port"
+}
+
+function verify_hardening_state() {
+    local failures=0
+    local config_failures=0
+    local key_failures=0
+    local crypto_failures=0
+    local service_failures=0
+    local ssh_dir
+    local main_config
+    local dropin_dir
+    local dropin_config
+    local include_glob
+    local rsa_key
+    local ed25519_key
+
+    ssh_dir="$(ssh_etc_dir)"
+    main_config="$(ssh_main_config)"
+    dropin_dir="$(ssh_dropin_dir)"
+    dropin_config="$(ssh_hardening_dropin)"
+    include_glob="$(ssh_include_glob)"
+    rsa_key="$(ssh_host_key_path ssh_host_rsa_key)"
+    ed25519_key="$(ssh_host_key_path ssh_host_ed25519_key)"
+
+    log_info "Starting post-hardening verification..."
+
+    if [ ! -f "$main_config" ]; then
+        log_error "Main SSH config not found: $main_config"
+        return 1
+    fi
+
+    log_info "[verify:config] Checking SSH config layout..."
+    if [ -d "$dropin_dir" ]; then
+        if awk -v inc="$include_glob" 'tolower($1)=="include" && $2==inc {found=1} END{exit !found}' "$main_config" 2>/dev/null; then
+            log_success "Include for sshd_config.d is present in main config."
+        else
+            log_warn "Include for sshd_config.d is missing in main config."
+            failures=$((failures + 1))
+            config_failures=$((config_failures + 1))
+        fi
+    else
+        log_info "No sshd_config.d directory present; main config-only mode."
+    fi
+
+    if [ -f "$dropin_config" ]; then
+        log_success "KratoSSH drop-in config found: $dropin_config"
+        if grep -q "BEGIN KratoSSH Hardening" "$dropin_config" 2>/dev/null; then
+            log_success "KratoSSH hardening block marker present in drop-in file."
+        else
+            log_warn "Drop-in exists but block marker was not found."
+            config_failures=$((config_failures + 1))
+            failures=$((failures + 1))
+        fi
+    else
+        log_warn "KratoSSH drop-in config not found at $dropin_config"
+    fi
+
+    log_info "[verify:keys] Checking host key files..."
+    if [ -f "$rsa_key" ]; then
+        log_success "RSA host key exists."
+    else
+        log_warn "RSA host key missing: $rsa_key"
+        failures=$((failures + 1))
+        key_failures=$((key_failures + 1))
+    fi
+
+    if [ -f "$ed25519_key" ]; then
+        log_success "ED25519 host key exists."
+    else
+        log_warn "ED25519 host key missing: $ed25519_key"
+        failures=$((failures + 1))
+        key_failures=$((key_failures + 1))
+    fi
+
+    log_info "[verify:crypto] Checking active SSH crypto configuration..."
+    if command -v sshd &>/dev/null; then
+        if sshd -t 2>/dev/null; then
+            log_success "sshd -t validation passed."
+        else
+            log_error "sshd -t validation failed."
+            failures=$((failures + 1))
+            crypto_failures=$((crypto_failures + 1))
+        fi
+
+        log_info "Effective SSH crypto settings:"
+        sshd -T 2>/dev/null | grep -Ei '^(kexalgorithms|ciphers|macs|hostkeyalgorithms|pubkeyacceptedalgorithms|casignaturealgorithms|gssapikexalgorithms) ' || log_warn "Could not read effective crypto settings from sshd -T"
+    else
+        log_warn "sshd command not found; skipping syntax/effective config checks."
+        failures=$((failures + 1))
+        crypto_failures=$((crypto_failures + 1))
+    fi
+
+    log_info "[verify:service] Checking SSH service state..."
+    if command -v systemctl &>/dev/null; then
+        if systemctl is-active --quiet sshd || systemctl is-active --quiet ssh; then
+            log_success "SSH service is active."
+        else
+            log_warn "SSH service is not active according to systemctl."
+            failures=$((failures + 1))
+            service_failures=$((service_failures + 1))
+        fi
+    else
+        log_info "systemctl not available; skipping service state check."
+    fi
+
+    printf '\nVerification summary:\n'
+    printf '  [config]  %s\n' "$( [ "$config_failures" -eq 0 ] && echo PASS || echo FAIL )"
+    printf '  [keys]    %s\n' "$( [ "$key_failures" -eq 0 ] && echo PASS || echo FAIL )"
+    printf '  [crypto]  %s\n' "$( [ "$crypto_failures" -eq 0 ] && echo PASS || echo FAIL )"
+    printf '  [service] %s\n' "$( [ "$service_failures" -eq 0 ] && echo PASS || echo FAIL )"
+    printf '  [overall] %s\n\n' "$( [ "$failures" -eq 0 ] && echo PASS || echo FAIL )"
+
+    if [ "$failures" -gt 0 ]; then
+        log_warn "Verification completed with $failures issue(s)."
+        return 1
+    fi
+
+    log_success "Verification completed successfully with no critical issues."
+    return 0
 }

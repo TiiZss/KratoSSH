@@ -77,6 +77,31 @@ function get_ssh_keys_group() {
     fi
 }
 
+function ssh_etc_dir() {
+    echo "${SSH_ETC_DIR:-/etc/ssh}"
+}
+
+function ssh_main_config() {
+    echo "$(ssh_etc_dir)/sshd_config"
+}
+
+function ssh_dropin_dir() {
+    echo "$(ssh_etc_dir)/sshd_config.d"
+}
+
+function ssh_include_glob() {
+    echo "${SSH_INCLUDE_GLOB:-/etc/ssh/sshd_config.d/*.conf}"
+}
+
+function ssh_hardening_dropin() {
+    echo "$(ssh_dropin_dir)/00-kratossh-hardening.conf"
+}
+
+function ssh_host_key_path() {
+    local key_name="$1"
+    echo "$(ssh_etc_dir)/${key_name}"
+}
+
 function display_logo() { 
 	echo -e " ---------------------------------------------------------------------------------"
 	echo -e "   __    __                      __                 ______    ______   __    __   "
@@ -104,7 +129,7 @@ function checkroot() {
 }
 
 function cleanup() {
-    if [ -n "$TEMP_CONFIG" ] && [ -f "$TEMP_CONFIG" ]; then
+    if [ -n "${TEMP_CONFIG:-}" ] && [ -f "${TEMP_CONFIG:-}" ]; then
         rm -f "$TEMP_CONFIG"
     fi
 }

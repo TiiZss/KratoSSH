@@ -14,51 +14,48 @@ function Ubuntu() {
     log_success "Tu versión de Ubuntu ($version_num) es compatible."
 
     if [ "$version_num" -ge 21 ]; then
-        regeneratekeys
-        moduli
-        # Enable RSA and ED25519 keys
-        safe_sed 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
-        apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS"
+        regeneratekeys || return 1
+        moduli || return 1
+        apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" || return 1
     elif [ "$version_num" -ge 19 ]; then
-        regeneratekeys
-        moduli
-        safe_sed 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
+        regeneratekeys || return 1
+        moduli || return 1
         apply_server_hardening \
             "$SSH_KEX_COMPAT" \
             "$SSH_CIPHERS" \
             "$SSH_MACS" \
-            "$SSH_HOST_KEYS_COMPAT"
+            "$SSH_HOST_KEYS_COMPAT" || return 1
     elif [ "$version_num" -ge 17 ]; then
-        regeneratekeys
-        moduli
+        regeneratekeys || return 1
+        moduli || return 1
         # Disable DSA and ECDSA
         safe_sed 's/^HostKey \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
         apply_server_hardening \
             "$SSH_KEX_COMPAT" \
             "$SSH_CIPHERS" \
             "$SSH_MACS" \
-            "ssh-ed25519,ssh-ed25519-cert-v01@openssh.com"
+            "ssh-ed25519,ssh-ed25519-cert-v01@openssh.com" || return 1
     elif [ "$version_num" -ge 15 ]; then
-        regeneratekeys
-        moduli
+        regeneratekeys || return 1
+        moduli || return 1
         safe_sed 's/^HostKey \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
         apply_server_hardening \
             "$SSH_KEX_LEGACY" \
             "$SSH_CIPHERS" \
-            "$SSH_MACS"
+            "$SSH_MACS" || return 1
     elif [ "$version_num" -ge 14 ]; then
-        regeneratekeys
-        moduli
+        regeneratekeys || return 1
+        moduli || return 1
         safe_sed 's/^HostKey \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
         apply_server_hardening \
             "$SSH_KEX_LEGACY" \
             "$SSH_CIPHERS" \
-            "$SSH_MACS"
+            "$SSH_MACS" || return 1
     else
         log_warn " Estas en Ubuntu version $(version) y no se ha implementado nada para ello todavía."
     fi
     #Restart OpenSSH server
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function Debian() {
@@ -71,31 +68,29 @@ function Debian() {
     log_success "Tu versión de Debian ($version_num) es compatible."
 
     if [ "$version_num" -ge 12 ]; then
-        regeneratekeys
-        moduli
-        apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+        regeneratekeys || return 1
+        moduli || return 1
+        apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
     elif [ "$version_num" -eq 11 ]; then
-        regeneratekeys
-        safe_sed 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
-        moduli
+        regeneratekeys || return 1
+        moduli || return 1
         apply_server_hardening \
             "$SSH_KEX_COMPAT" \
             "$SSH_CIPHERS" \
             "$SSH_MACS" \
-            "$SSH_HOST_KEYS_COMPAT"
+            "$SSH_HOST_KEYS_COMPAT" || return 1
     elif [ "$version_num" -eq 10 ]; then
-        regeneratekeys
-        safe_sed 's/^\#HostKey \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
-        moduli
+        regeneratekeys || return 1
+        moduli || return 1
         apply_server_hardening \
             "$SSH_KEX_COMPAT" \
             "$SSH_CIPHERS" \
             "$SSH_MACS" \
-            "ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com"
+            "ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com" || return 1
     else
         log_warn " Estas en Debian version $(version_num) y no se ha implementado nada para ello todavía."
     fi
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function CentOS() {
@@ -109,7 +104,7 @@ function CentOS() {
 
     case $version_num in
         "8")
-            regeneratekeys
+            regeneratekeys || return 1
             if [ "$DRY_RUN" = false ]; then
                 local ssh_group
                 ssh_group=$(get_ssh_keys_group)
@@ -121,7 +116,7 @@ function CentOS() {
                  log_info "[DRY-RUN] Would chgrp/chmod keys"
             fi
 
-            moduli
+            moduli || return 1
             safe_sed 's/^HostKey \/etc\/ssh\/ssh_host_ecdsa_key$/\#HostKey \/etc\/ssh\/ssh_host_ecdsa_key/g' /etc/ssh/sshd_config
 
             # Restrict via crypto-policies
@@ -148,7 +143,7 @@ EOF
             fi
 
             # Re-generate the ED25519 key (backup existing keys first via regeneratekeys)
-            regeneratekeys
+            regeneratekeys || return 1
             if [ "$DRY_RUN" = false ]; then
                 local ssh_group
                 ssh_group=$(get_ssh_keys_group)
@@ -160,20 +155,20 @@ EOF
                  log_info "[DRY-RUN] Would regenerate ED25519 key for CentOS 7"
             fi
 
-            moduli
+            moduli || return 1
             safe_sed 's/^HostKey \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g' /etc/ssh/sshd_config
 
             apply_server_hardening \
                 "$SSH_KEX_COMPAT" \
                 "$SSH_CIPHERS" \
-                "$SSH_MACS"
+                "$SSH_MACS" || return 1
         ;;
 
         *)
             echo -e " Estas en CentOS version $(version) y no se ha implementado nada para ello todavía."
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function Amazon() {
@@ -187,8 +182,8 @@ function Amazon() {
 
     case $version_num in
         "2023")
-            regeneratekeys
-            moduli
+            regeneratekeys || return 1
+            moduli || return 1
             
             if [ "$DRY_RUN" = false ]; then
                  echo -e "KexAlgorithms $SSH_KEX\n\nCiphers $SSH_CIPHERS\n\nMACs $SSH_MACS\n\nHostKeyAlgorithms $SSH_HOST_KEYS\n\nCASignatureAlgorithms $SSH_HOST_KEYS\n\nGSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-\n\nHostbasedAcceptedAlgorithms $SSH_HOST_KEYS\n\nPubkeyAcceptedAlgorithms $SSH_HOST_KEYS\n\n" > /etc/crypto-policies/back-ends/opensshserver.config
@@ -201,7 +196,7 @@ function Amazon() {
             echo -e "Estas en Amazon Linux version $(version) y no se ha implementado nada para ello todavía"
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function Rocky() {
@@ -215,16 +210,16 @@ function Rocky() {
 
     case $version_num in
         "10" | "9")
-            regeneratekeys
-            moduli
-            apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
+            regeneratekeys || return 1
+            moduli || return 1
+            apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
         ;;
 
         *)
             echo -e "Estas en Rocky Linux version $(version) y no se ha implementado nada para ello todavía"
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function UCore() {
@@ -246,7 +241,7 @@ function UCore() {
                 log_info "[DRY-RUN] Would generate keys in CWD"
             fi
 
-            moduli
+            moduli || return 1
             
             # Using custom extra arg for HostKeys in config
             apply_server_hardening \
@@ -254,7 +249,7 @@ function UCore() {
                 "$SSH_CIPHERS" \
                 "$SSH_MACS" \
                 "" \
-                ""
+                "" || return 1
         ;;
 
         "16")
@@ -265,17 +260,17 @@ function UCore() {
             else
                  log_info "[DRY-RUN] Would generate keys and filter moduli"
             fi
-            moduli
+            moduli || return 1
 
             safe_sed 's/^MACs \(.*\)$/\#MACs \1/g' /etc/ssh/sshd_config
-            apply_server_hardening "" "" "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com" ""
+            apply_server_hardening "" "" "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com" "" || return 1
         ;;
 
         *)
             echo -e "Estas en Ubuntu Core version $(version) y no se ha implementado nada para ello todavía"
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function pfSense() {
@@ -289,8 +284,8 @@ function pfSense() {
 
     case $version_num in
         "2")
-            regeneratekeys
-            moduli
+            regeneratekeys || return 1
+            moduli || return 1
             
             if [ "$DRY_RUN" = false ]; then
                 sed -i.bak 's/^MACs \(.*\)$/\#MACs \1/g' /etc/ssh/sshd_config && rm /etc/ssh/sshd_config.bak
@@ -298,14 +293,14 @@ function pfSense() {
                  log_info "[DRY-RUN] Would backup and sed sshd_config"
             fi
             
-            apply_server_hardening "" "" "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com" ""
+            apply_server_hardening "" "" "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com" "" || return 1
         ;;
 
         *)
             echo -e "Estas en pfSense version $(version_num) y no se ha implementado nada para ello todavía"
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function OpenBSD() {
@@ -319,22 +314,22 @@ function OpenBSD() {
 
     case $version_num in
         "6" | "7" | "8")
-            regeneratekeys
-            moduli
+            regeneratekeys || return 1
+            moduli || return 1
             
             # Merged HostKey logic into apply_server_hardening
             apply_server_hardening \
                 "$SSH_KEX_COMPAT" \
                 "$SSH_CIPHERS" \
                 "$SSH_MACS" \
-                "ssh-ed25519"
+                "ssh-ed25519" || return 1
         ;;
 
         *)
             echo -e "Estas en OpenBSD version $(version_num) y no se ha implementado nada para ello todavía"
         ;;
     esac
-    restart_ssh
+    restart_ssh || return 1
 }
 
 function UbuntuC() {
@@ -450,7 +445,7 @@ function Fedora() {
 
     log_success "Tu versión de Fedora ($version_num) es compatible."
 
-    regeneratekeys
+    regeneratekeys || return 1
     if [ "$DRY_RUN" = false ]; then
         local ssh_group
         ssh_group=$(get_ssh_keys_group)
@@ -462,29 +457,29 @@ function Fedora() {
         log_info "[DRY-RUN] Would chgrp/chmod keys"
     fi
 
-    moduli
-    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
-    restart_ssh
+    moduli || return 1
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
+    restart_ssh || return 1
 }
 
 function openSUSE() {
     version_num=$1
     log_success "Aplicando SSH Hardening para openSUSE ($version_num)..."
 
-    regeneratekeys
-    moduli
-    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS"
-    restart_ssh
+    regeneratekeys || return 1
+    moduli || return 1
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" || return 1
+    restart_ssh || return 1
 }
 
 function Arch() {
     version_num=$1
     log_success "Aplicando SSH Hardening para Arch Linux (rolling release)..."
 
-    regeneratekeys
-    moduli
-    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
-    restart_ssh
+    regeneratekeys || return 1
+    moduli || return 1
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
+    restart_ssh || return 1
 }
 
 function FedoraC() {
@@ -509,10 +504,10 @@ function Alpine() {
     version_num=$1
     log_success "Aplicando SSH Hardening para Alpine Linux ($version_num)..."
 
-    regeneratekeys
-    moduli
-    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072"
-    restart_ssh
+    regeneratekeys || return 1
+    moduli || return 1
+    apply_server_hardening "$SSH_KEX" "$SSH_CIPHERS" "$SSH_MACS" "$SSH_HOST_KEYS" "RequiredRSASize 3072" || return 1
+    restart_ssh || return 1
 }
 
 function AlpineC() {

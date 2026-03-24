@@ -16,6 +16,7 @@ DRY_RUN=false
 AUTO_MODE=false
 TARGET_TYPE=""
 FAST_MODE=false
+FORCE_REGENERATE=false
 
 # Source Libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,8 +30,13 @@ source "$SCRIPT_DIR/lib/mfa.sh" || { echo "Failed to load lib/mfa.sh"; exit 1; }
 source "$SCRIPT_DIR/lib/perimeter.sh" || { echo "Failed to load lib/perimeter.sh"; exit 1; }
 source "$SCRIPT_DIR/lib/menu.sh" || { echo "Failed to load lib/menu.sh"; exit 1; }
 
+trap cleanup EXIT INT TERM
+
 function detect_os() {
-    if [ -f "/etc/alpine-release" ]; then
+    if [ -n "${KRATOSSH_TEST_OS_NAME:-}" ] && [ -n "${KRATOSSH_TEST_OS_VERSION:-}" ]; then
+        name="$KRATOSSH_TEST_OS_NAME"
+        version="$KRATOSSH_TEST_OS_VERSION"
+    elif [ -f "/etc/alpine-release" ]; then
         name="Alpine"
         version=$(cat /etc/alpine-release)
     elif [ -f "/etc/os-release" ]; then
@@ -171,7 +177,9 @@ function run_hardening() {
             read -r resp
             [[ ! "$resp" =~ ^[yY] ]] && log_info "Aborted by user." && exit 0
         fi
-        $target_fn "$version_num"
+        if ! $target_fn "$version_num"; then
+            die "Client hardening failed for $name $version_num"
+        fi
     else
         # -- SERVER HARDENING FLOW --
         log_info "Applying Server Hardening for $name $version_num..."
@@ -202,7 +210,9 @@ function run_hardening() {
         
         # Crypto
         if [ "$DO_CRYPTO" = true ]; then
-            $target_fn "$version_num"
+            if ! $target_fn "$version_num"; then
+                die "Crypto hardening failed for $name $version_num"
+            fi
         else
             log_info "Skipping Crypto Hardening (not selected)."
         fi
@@ -210,22 +220,22 @@ function run_hardening() {
         # Auth
         if [ "$DO_AUTH" = true ]; then
             # Default strict settings: Root=no, Pass=no, Empty=no, Tries=3, Sessions=2
-            apply_auth_hardening "no" "no" "no" "3" "2" "$AUTH_GROUP"
+            apply_auth_hardening "no" "no" "no" "3" "2" "$AUTH_GROUP" || die "Authentication hardening failed"
         fi
         
         # Network
         if [ "$DO_NET" = true ]; then
-            apply_network_hardening "no" "no" "no" "300" "0"
+            apply_network_hardening "no" "no" "no" "300" "0" || die "Network hardening failed"
         fi
         
         # MFA
         if [ "$DO_MFA" = true ]; then
-            apply_mfa_hardening "$STRICT_MFA"
+            apply_mfa_hardening "$STRICT_MFA" || die "MFA hardening failed"
         fi
         
         # Perimeter
         if [ "$DO_PERIM" = true ]; then
-            apply_perimeter_hardening "$PERIM_PORT"
+            apply_perimeter_hardening "$PERIM_PORT" || die "Perimeter hardening failed"
         fi
         
         # 4. Post-Audit
@@ -278,12 +288,28 @@ while [[ $# -gt 0 ]]; do
             ;;
         --audit)
             # audit_system doesn't strictly need root if only auditing local port
+            log_info "Audit mode enabled (read-only): no hardening changes will be applied."
             audit_system
             exit $?
+            ;;
+        --verify)
+            # verify_hardening_state performs local post-hardening checks
+            verify_hardening_state
+            exit $?
+            ;;
+        --fix)
+            TARGET_TYPE="server"
+            AUTO_MODE=true
+            shift
             ;;
         --fast)
             FAST_MODE=true
             log_info "Fast mode enabled: Skipping moduli generation."
+            shift
+            ;;
+        --force-regenerate)
+            FORCE_REGENERATE=true
+            log_warn "Force key regeneration enabled. Existing host keys will be rotated."
             shift
             ;;
         -h|--help)
@@ -293,8 +319,11 @@ while [[ $# -gt 0 ]]; do
             echo "  -a, --auto          Skip confirmation prompts"
             echo "  -t, --type [C|S]    Specify Client (C) or Server (S)"
             echo "  -r, --restore       Restore SSH keys from latest backup"
-            echo "  --audit             Run security audit on localhost"
+            echo "  --audit             Run read-only security audit on localhost"
+            echo "  --verify            Run post-hardening verification checks"
+            echo "  --fix               Apply server crypto hardening (auto server mode)"
             echo "  --fast              Skip time-consuming moduli generation"
+            echo "  --force-regenerate  Force host key rotation during hardening"
             exit 0
             ;;
         *)

@@ -56,7 +56,10 @@ You have to be root or use sudo to run it
 * `-d, --dry-run`: Simulate changes without modifying any files.
 * `-a, --auto`: Run in non-interactive mode (requires `--type`).
 * `-t, --type [server|client]`: Specify operation type for auto mode.
-* `--audit`: Run a security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
+* `--audit`: Run a read-only security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
+* `--verify`: Run post-hardening verification checks (config, keys, service and effective crypto settings) and print a PASS/FAIL summary by block.
+* `--fix`: Apply server crypto hardening in auto mode.
+* `--force-regenerate`: Force host key rotation during hardening (keys are otherwise kept if already present).
 * `-r, --restore`: Restore SSH host keys from backup.
 
 ### Examples
@@ -80,6 +83,46 @@ You have to be root or use sudo to run it
 ```bash
 ./KratoSSH.sh --audit
 ```
+
+**Verify Current Hardening State**
+```bash
+./KratoSSH.sh --verify
+```
+
+**Audit + Fix Crypto Hardening**
+```bash
+./KratoSSH.sh --fix
+```
+
+**Audit + Fix Crypto Hardening (force key rotation)**
+```bash
+./KratoSSH.sh --fix --force-regenerate
+```
+
+Note: if your system has /etc/ssh/sshd_config.d but the Include directive is missing in /etc/ssh/sshd_config, KratoSSH now enables it safely (with validation and rollback).
+
+## Latest release highlights (v20260324_1105)
+
+- Added `--fix` and `--verify` operational flows to harden and validate SSH state end-to-end.
+- Improved transactional safety with rollback behavior when configuration validation fails.
+- Added regression-focused shell tests for audit, verify, fix success/failure paths, and restart failure propagation.
+- Added CI shell checks workflow for syntax and lint validation.
+
+## Development checks
+
+Run the local smoke tests:
+
+```bash
+bash tests/test-syntax.sh
+```
+
+Run `shellcheck` locally if it is installed:
+
+```bash
+shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
+```
+
+The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next machines / steps
 * Include other distributions
