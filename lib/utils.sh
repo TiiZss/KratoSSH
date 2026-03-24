@@ -102,7 +102,8 @@ function ssh_host_key_path() {
     echo "$(ssh_etc_dir)/${key_name}"
 }
 
-function display_logo() { 
+function display_logo() {
+	[ "${KRATOSSH_SUPPRESS_LOGO:-0}" = 1 ] && return 0
 	echo -e " ---------------------------------------------------------------------------------"
 	echo -e "   __    __                      __                 ______    ______   __    __   "
 	echo -e "  |  \  /  \  TiiZss            |  \               /      \  /      \ |  \  |  \  "

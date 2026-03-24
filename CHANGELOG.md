@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1600
+### Added
+- **CLI**: Added `--json` flag for `--audit-client`: emits a JSON array of `{client, check, status}` objects to stdout; human-readable log goes to stderr.
+- **Client audit**: Added Windows HKCU registry audit for PuTTY via `_audit_putty_reg_prop()` — verifies `Cipher`, `KEX`, and `AgentFwd` across ALL sessions under `HKCU:\Software\SimonTatham\PuTTY\Sessions`. Fallback to missing-source warning when registry is unavailable.
+- **Testing**: Extended `tests/test-audit-client.sh` with `--json` success/fail output tests (structure, `client` field, `status:pass/fail`, no human-readable stdout).
+
+### Changed
+- **README**: Updated Next steps after completing PuTTY registry audit and `--json` mode.
+### Added
+- **CLI**: Added `--strict` for `--audit-client` to fail when profile sources are missing or unavailable.
+- **Client audit**: Added Windows registry-read checks for Bitvise, WinSCP, and MobaXterm in read-only client audit mode.
+- **Testing**: Extended `tests/test-audit-client.sh` with strict/non-strict missing-source cases and `--client-app all --strict` behavior.
+
+### Changed
+- **README**: Updated options (`--strict`) and refreshed Next steps after completing strict/all audit-client behavior.
+
 ## [2026-03-24] - v20260324_1515
 ### Added
 - **CLI**: Added `--audit-client` for read-only client profile inspection by `--client-app`.

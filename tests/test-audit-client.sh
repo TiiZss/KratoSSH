@@ -13,7 +13,9 @@ cleanup() {
     rm -rf "$TMP_DIR"
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 
 mkdir -p "$MOCK_BIN" "$HOME_DIR/.ssh"
 
@@ -27,6 +29,20 @@ exit 0
 EOF
 
 chmod +x "$MOCK_BIN/id"
+
+# Mock powershell.exe: exits 2 (path missing) - fast deterministic tests
+cat > "$MOCK_BIN/powershell.exe" <<'EOF'
+#!/bin/bash
+exit 2
+EOF
+chmod +x "$MOCK_BIN/powershell.exe"
+
+# Mock powershell.exe: exits 2 (path missing) - fast deterministic tests
+cat > "$MOCK_BIN/powershell.exe" <<'EOF'
+#!/bin/bash
+exit 2
+EOF
+chmod +x "$MOCK_BIN/powershell.exe"
 
 export PATH="$MOCK_BIN:$PATH"
 export HOME="$HOME_DIR"
@@ -82,5 +98,126 @@ echo "$bad_output" | grep -Fq 'ForwardAgent no missing or insecure' || {
     echo "Expected ForwardAgent failure message was not found"
     exit 1
 }
+
+echo "Running --audit-client non-strict missing-source test..."
+# SecureCRT has no Windows registry fallback, so "source missing" is deterministic
+set +e
+missing_soft_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app securecrt 2>&1)"
+missing_soft_status=$?
+set -e
+
+if [ "$missing_soft_status" -ne 0 ]; then
+    echo "$missing_soft_output"
+    echo "Expected non-strict missing source to succeed"
+    exit 1
+fi
+
+echo "Running --audit-client strict missing-source test..."
+set +e
+missing_strict_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app securecrt --strict 2>&1)"
+missing_strict_status=$?
+set -e
+
+if [ "$missing_strict_status" -eq 0 ]; then
+    echo "$missing_strict_output"
+    echo "Expected strict missing source to fail"
+    exit 1
+fi
+
+echo "$missing_strict_output" | grep -Fq 'strict mode' || {
+    echo "$missing_strict_output"
+    echo "Expected strict mode message was not found"
+    exit 1
+}
+
+echo "Running --audit-client all --strict test..."
+set +e
+all_strict_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app all --strict 2>&1)"
+all_strict_status=$?
+set -e
+
+if [ "$all_strict_status" -eq 0 ]; then
+    echo "$all_strict_output"
+    echo "Expected --audit-client all --strict to fail when sources are missing"
+    exit 1
+fi
+
+# ── --json output mode test ──────────────────────────────────────────────────
+echo "Running --audit-client --json output test..."
+
+# Recreate .ssh dir — earlier subprocess tests may have removed it
+mkdir -p "$HOME_DIR/.ssh"
+
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent no
+    ForwardX11 no
+    Compression no
+EOF
+
+set +e
+json_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --json 2>/dev/null)"
+json_status=$?
+set -e
+
+if [ "$json_status" -ne 0 ]; then
+    echo "$json_output"
+    echo "Expected --audit-client --json to succeed on hardened openssh config"
+    exit 1
+fi
+
+# Must start with '[' and end with ']'
+if ! printf '%s' "$json_output" | grep -q '^\['; then
+    echo "$json_output"
+    echo "--json output does not start with '['"
+    exit 1
+fi
+
+# Must contain at least one object with 'status':'pass'
+if ! printf '%s' "$json_output" | grep -q '"status":"pass"'; then
+    echo "$json_output"
+    echo "--json output contains no pass entries"
+    exit 1
+fi
+
+# Must contain 'client' field
+if ! printf '%s' "$json_output" | grep -q '"client":"openssh"'; then
+    echo "$json_output"
+    echo "--json output missing client field 'openssh'"
+    exit 1
+fi
+
+# Human-readable log must NOT appear in stdout when --json is active
+if printf '%s' "$json_output" | grep -q '\[OK\]'; then
+    echo "$json_output"
+    echo "--json stdout contains human-readable [OK] log lines, expected clean JSON only"
+    exit 1
+fi
+
+# ── --json fail case contains 'fail' status ──────────────────────────────────
+echo "Running --audit-client --json fail status test..."
+
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+Host *
+    KexAlgorithms curve25519-sha256
+    Ciphers chacha20-poly1305@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com
+    ForwardAgent yes
+    ForwardX11 no
+    Compression no
+EOF
+
+set +e
+json_fail_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --json 2>/dev/null)"
+set -e
+
+if ! printf '%s' "$json_fail_output" | grep -q '"status":"fail"'; then
+    echo "$json_fail_output"
+    echo "Expected at least one fail entry in JSON output for insecure ForwardAgent"
+    exit 1
+fi
 
 echo "--audit-client tests passed."

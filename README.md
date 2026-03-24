@@ -111,6 +111,7 @@ You have to be root or use sudo to run it
 * `-t, --type [server|client]`: Specify operation type for auto mode.
 * `--audit`: Run a read-only security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
 * `--audit-client`: Run a read-only client profile audit for the selected app (`--client-app`) without making changes.
+* `--strict`: With `--audit-client`, fail when profile sources are missing or unavailable.
 * `--verify`: Run post-hardening verification checks (config, keys, service and effective crypto settings) and print a PASS/FAIL summary by block.
 * `--fix`: Apply server crypto hardening in auto mode.
 * `--fix-port [PORT]`: With `--fix`, also set SSH server port and apply perimeter hardening.
@@ -242,5 +243,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Extend `--audit-client` with Windows registry-read checks for Bitvise/WinSCP/MobaXterm.
-* Add `--audit-client --client-app all --strict` mode to fail on unsupported or missing profile sources.
+* Add `--audit-client --json` output for CI parsing.
+* Add registry-read audit support for PuTTY saved sessions on native Windows (HKCU session tree).

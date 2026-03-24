@@ -424,10 +424,102 @@ function _audit_expect_grep() {
 
     if grep -Eiq "$pattern" "$file"; then
         log_success "[AUDIT] $label"
+        _audit_json_record "$label" "pass"
         return 0
     fi
 
     log_error "[AUDIT] $label missing or insecure"
+    _audit_json_record "$label" "fail"
+    return 1
+}
+
+function _audit_missing_source() {
+    local message="$1"
+    if [ "${AUDIT_CLIENT_STRICT:-false}" = true ]; then
+        log_error "[AUDIT] $message (strict mode)"
+        _audit_json_record "$message" "fail"
+        return 1
+    fi
+    log_warn "[AUDIT] $message"
+    _audit_json_record "$message" "warn"
+    return 0
+}
+
+function _audit_json_record() {
+    local label="$1"
+    local status="$2"  # pass | fail | warn
+    [ "${AUDIT_JSON:-false}" = true ] || return 0
+    [ -n "${_AUDIT_JSON_TMP:-}" ] || return 0
+    local clean_label="${label//\"/\\\"}"
+    local clean_client="${_AUDIT_CURRENT_CLIENT:-unknown}"
+    printf '{"client":"%s","check":"%s","status":"%s"}\n' \
+        "$clean_client" "$clean_label" "$status" >> "$_AUDIT_JSON_TMP"
+}
+
+function _audit_windows_registry_any_match() {
+    local path="$1"
+    local value_name="$2"
+    local pattern="$3"
+    local label="$4"
+
+    if ! command -v powershell.exe >/dev/null 2>&1; then
+        _audit_missing_source "Windows registry unavailable for $label (powershell.exe not found)"
+        return $?
+    fi
+
+    # Exit codes: 0=match found, 1=no match, 2=path missing
+    local ps_status
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+        "$p='$path'; if(-not (Test-Path $p)){exit 2}; $ok=$false; Get-ChildItem -Path $p -ErrorAction SilentlyContinue | ForEach-Object { $v=(Get-ItemProperty -Path $_.PSPath -Name '$value_name' -ErrorAction SilentlyContinue).$value_name; if($v -and ($v -match '$pattern')) { $ok=$true } }; if($ok){exit 0}else{exit 1}" \
+        >/dev/null 2>&1
+    ps_status=$?
+
+    if [ "$ps_status" -eq 0 ]; then
+        log_success "[AUDIT] $label"
+        _audit_json_record "$label" "pass"
+        return 0
+    fi
+
+    if [ "$ps_status" -eq 2 ]; then
+        _audit_missing_source "Windows registry path not found for $label ($path)"
+        return $?
+    fi
+
+    log_error "[AUDIT] $label missing or insecure"
+    _audit_json_record "$label" "fail"
+    return 1
+}
+
+function _audit_windows_registry_value_match() {
+    local path="$1"
+    local value_name="$2"
+    local pattern="$3"
+    local label="$4"
+
+    if ! command -v powershell.exe >/dev/null 2>&1; then
+        _audit_missing_source "Windows registry unavailable for $label (powershell.exe not found)"
+        return $?
+    fi
+
+    local ps_status
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+        "$p='$path'; if(-not (Test-Path $p)){exit 2}; $v=(Get-ItemProperty -Path $p -Name '$value_name' -ErrorAction SilentlyContinue).$value_name; if($v -and ($v -match '$pattern')){exit 0}else{exit 1}" \
+        >/dev/null 2>&1
+    ps_status=$?
+
+    if [ "$ps_status" -eq 0 ]; then
+        log_success "[AUDIT] $label"
+        _audit_json_record "$label" "pass"
+        return 0
+    fi
+
+    if [ "$ps_status" -eq 2 ]; then
+        _audit_missing_source "Windows registry path not found for $label ($path)"
+        return $?
+    fi
+
+    log_error "[AUDIT] $label missing or insecure"
+    _audit_json_record "$label" "fail"
     return 1
 }
 
@@ -450,6 +542,24 @@ function audit_client_openssh() {
     return $fail
 }
 
+# Checks one property across ALL PuTTY registry sessions.
+# $1=registry base path  $2=property name  $3=regex pattern  $4=label
+# Returns 0=all match, 1=some fail, 2=path missing, 3=no sessions
+function _audit_putty_reg_prop() {
+    local reg="$1" prop="$2" pattern="$3" label="$4"
+    local ps_status
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+        "\$p='$reg'; if(-not(Test-Path \$p)){exit 2}; \$s=@(Get-ChildItem -Path \$p -EA SilentlyContinue); if(\$s.Count -eq 0){exit 3}; \$ok=\$true; \$s|ForEach-Object{\$v=(Get-ItemProperty -Path \$_.PSPath -Name '$prop' -EA SilentlyContinue).$prop; if(-not(\$v -match '$pattern')){\$ok=\$false}}; if(\$ok){exit 0}else{exit 1}" \
+        >/dev/null 2>&1
+    ps_status=$?
+    case "$ps_status" in
+        0) log_success "[AUDIT] $label (all sessions)"; _audit_json_record "$label (all sessions)" "pass"; return 0 ;;
+        2) _audit_missing_source "PuTTY registry path not found ($reg)"; return $? ;;
+        3) log_warn "[AUDIT] No PuTTY registry sessions found"; _audit_json_record "$label" "warn"; return 0 ;;
+        *) log_error "[AUDIT] $label missing or insecure"; _audit_json_record "$label (all sessions)" "fail"; return 1 ;;
+    esac
+}
+
 function audit_client_putty() {
     local dir="$HOME/.putty/sessions"
     local fail=0
@@ -457,8 +567,16 @@ function audit_client_putty() {
     local file
 
     if [ ! -d "$dir" ]; then
-        log_warn "[AUDIT] PuTTY sessions not found at $dir"
-        return 0
+        # Windows/WSL: check HKCU registry sessions
+        if command -v powershell.exe >/dev/null 2>&1; then
+            local putty_reg='HKCU:\Software\SimonTatham\PuTTY\Sessions'
+            _audit_putty_reg_prop "$putty_reg" 'Cipher' 'chacha20|aes' 'PuTTY registry Cipher' || fail=1
+            _audit_putty_reg_prop "$putty_reg" 'KEX' 'ecdh' 'PuTTY registry KEX' || fail=1
+            _audit_putty_reg_prop "$putty_reg" 'AgentFwd' '^0$' 'PuTTY registry AgentFwd=0' || fail=1
+            return $fail
+        fi
+        _audit_missing_source "PuTTY sessions not found at $dir and Windows registry unavailable"
+        return $?
     fi
 
     for file in "$dir"/*; do
@@ -501,8 +619,8 @@ function audit_client_securecrt() {
     local count=0
 
     if [ ! -d "$dir" ]; then
-        log_warn "[AUDIT] SecureCRT sessions not found at $dir"
-        return 0
+        _audit_missing_source "SecureCRT sessions not found at $dir"
+        return $?
     fi
 
     for file in "$dir"/*.ini; do
@@ -524,13 +642,15 @@ function audit_client_winscp() {
     local file="$HOME/.config/winscp.ini"
     local fail=0
 
-    if [ ! -f "$file" ]; then
-        log_warn "[AUDIT] WinSCP INI not found at $file"
-        return 0
+    if [ -f "$file" ]; then
+        _audit_expect_grep "$file" '^KexList=ecdh' 'WinSCP KexList present' || fail=1
+        _audit_expect_grep "$file" '^AgentFwd=0$' 'WinSCP AgentFwd=0' || fail=1
+        return $fail
     fi
 
-    _audit_expect_grep "$file" '^KexList=ecdh' 'WinSCP KexList present' || fail=1
-    _audit_expect_grep "$file" '^AgentFwd=0$' 'WinSCP AgentFwd=0' || fail=1
+    # Windows registry-read fallback
+    _audit_windows_registry_any_match 'HKCU:\Software\Martin Prikryl\WinSCP 2\Sessions' 'KexList' 'ecdh|curve25519' 'WinSCP registry KexList' || fail=1
+    _audit_windows_registry_any_match 'HKCU:\Software\Martin Prikryl\WinSCP 2\Sessions' 'AgentFwd' '^0$' 'WinSCP registry AgentFwd=0' || fail=1
     return $fail
 }
 
@@ -539,8 +659,8 @@ function audit_client_termius() {
     local fail=0
 
     if [ ! -f "$file" ]; then
-        log_warn "[AUDIT] Termius storage not found at $file"
-        return 0
+        _audit_missing_source "Termius storage not found at $file"
+        return $?
     fi
 
     _audit_expect_grep "$file" '"ciphers"[[:space:]]*:[[:space:]]*".*chacha20-poly1305@openssh.com' 'Termius ciphers include chacha20-poly1305' || fail=1
@@ -552,19 +672,23 @@ function audit_client_mobaxterm() {
     local file="$HOME/.config/MobaXterm/MobaXterm.ini"
     local fail=0
 
-    if [ ! -f "$file" ]; then
-        log_warn "[AUDIT] MobaXterm INI not found at $file"
-        return 0
+    if [ -f "$file" ]; then
+        _audit_expect_grep "$file" '^SSH_Kex=curve25519-sha256' 'MobaXterm SSH_Kex hardened' || fail=1
+        _audit_expect_grep "$file" '^SSH_AgentFwd=0$' 'MobaXterm SSH_AgentFwd disabled' || fail=1
+        return $fail
     fi
 
-    _audit_expect_grep "$file" '^SSH_Kex=curve25519-sha256' 'MobaXterm SSH_Kex hardened' || fail=1
-    _audit_expect_grep "$file" '^SSH_AgentFwd=0$' 'MobaXterm SSH_AgentFwd disabled' || fail=1
+    # Windows registry-read fallback (best-effort)
+    _audit_windows_registry_value_match 'HKCU:\Software\Mobatek\MobaXterm' 'SSH_Kex' 'curve25519|group16|group18' 'MobaXterm registry SSH_Kex' || fail=1
+    _audit_windows_registry_value_match 'HKCU:\Software\Mobatek\MobaXterm' 'SSH_AgentFwd' '^0$' 'MobaXterm registry SSH_AgentFwd=0' || fail=1
     return $fail
 }
 
 function audit_client_bitvise() {
-    log_warn "[AUDIT] Bitvise read-only audit is not yet implemented for registry-only configurations."
-    return 0
+    local fail=0
+    _audit_windows_registry_value_match 'HKCU:\Software\Bitvise\BvSshClient\Settings' 'PreferredKex' 'curve25519|group16|group18' 'Bitvise PreferredKex' || fail=1
+    _audit_windows_registry_value_match 'HKCU:\Software\Bitvise\BvSshClient\Settings' 'PreferredCiphers' 'chacha20|aes256-gcm|aes128-gcm' 'Bitvise PreferredCiphers' || fail=1
+    return $fail
 }
 
 function audit_client_hardening() {
@@ -572,8 +696,20 @@ function audit_client_hardening() {
     local fail=0
     local c
 
+    # Suppress logo and banner in JSON mode to keep stdout clean for CI parsing
+    if [ "${AUDIT_JSON:-false}" = true ]; then
+        export KRATOSSH_SUPPRESS_LOGO=1
+    fi
+
+    # Initialise JSON temp file when JSON output mode is active
+    _AUDIT_JSON_TMP=""
+    if [ "${AUDIT_JSON:-false}" = true ]; then
+        _AUDIT_JSON_TMP="$(mktemp)"
+    fi
+
     _audit_one() {
         local target="$1"
+        _AUDIT_CURRENT_CLIENT="$target"
         case "$target" in
             openssh) audit_client_openssh || return 1 ;;
             putty) audit_client_putty || return 1 ;;
@@ -591,17 +727,54 @@ function audit_client_hardening() {
         return 0
     }
 
-    if [ "$app" = "all" ]; then
-        for c in $(list_supported_clients); do
-            log_info "[AUDIT] Checking client profile: $c"
-            _audit_one "$c" || fail=1
-        done
+    # In JSON mode redirect human-readable stdout to stderr; JSON goes to stdout at end.
+    if [ "${AUDIT_JSON:-false}" = true ]; then
+        {
+            if [ "$app" = "all" ]; then
+                for c in $(list_supported_clients); do
+                    log_info "[AUDIT] Checking client profile: $c"
+                    _audit_one "$c" || fail=1
+                done
+            else
+                _audit_one "$app" || fail=1
+            fi
+        } >&2
     else
-        _audit_one "$app" || fail=1
+        if [ "$app" = "all" ]; then
+            for c in $(list_supported_clients); do
+                log_info "[AUDIT] Checking client profile: $c"
+                _audit_one "$c" || fail=1
+            done
+        else
+            _audit_one "$app" || fail=1
+        fi
+    fi
+
+    # Emit JSON array to stdout if requested
+    if [ "${AUDIT_JSON:-false}" = true ] && [ -n "${_AUDIT_JSON_TMP:-}" ] && [ -f "$_AUDIT_JSON_TMP" ]; then
+        local lines=()
+        while IFS= read -r line; do
+            lines+=("$line")
+        done < "$_AUDIT_JSON_TMP"
+        rm -f "$_AUDIT_JSON_TMP"
+        printf '[\n'
+        local i
+        for i in "${!lines[@]}"; do
+            if [ "$i" -lt $(( ${#lines[@]} - 1 )) ]; then
+                printf '  %s,\n' "${lines[$i]}"
+            else
+                printf '  %s\n' "${lines[$i]}"
+            fi
+        done
+        printf ']\n'
     fi
 
     if [ "$fail" -eq 0 ]; then
-        log_success "Client audit completed: no failed checks."
+        if [ "${AUDIT_JSON:-false}" = true ]; then
+            log_success "Client audit completed: no failed checks." >&2
+        else
+            log_success "Client audit completed: no failed checks."
+        fi
         return 0
     fi
 
