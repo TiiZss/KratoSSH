@@ -1,0 +1,24 @@
+name: Shell Checks
+
+on:
+  push:
+    branches:
+      - main
+      - claude/**
+  pull_request:
+
+jobs:
+  shell-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run shell smoke tests
+        run: bash tests/test-syntax.sh
