@@ -190,6 +190,40 @@ echo "$fix_output" | grep -Fq 'Running POST-HARDENING Audit...' || {
     exit 1
 }
 
+echo "Running CLI --fix --fix-port test..."
+SSH_ETC_DIR="$TMP_DIR/fix-port/etc/ssh"
+export SSH_ETC_DIR
+unset KRATOSSH_TEST_FAIL_VALIDATE
+unset KRATOSSH_TEST_FAIL_RESTART
+init_ssh_tree "$SSH_ETC_DIR"
+
+fix_port_output="$(bash "$REPO_DIR/KratoSSH.sh" --fix --fix-port 2222 2>&1)"
+fix_port_status=$?
+
+if [ "$fix_port_status" -ne 0 ]; then
+    echo "$fix_port_output"
+    echo "KratoSSH --fix --fix-port should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'BEGIN KratoSSH Hardening' "$SSH_ETC_DIR/sshd_config.d/00-kratossh-hardening.conf" || {
+    echo "$fix_port_output"
+    echo "Fix-port mode lost the hardening block"
+    exit 1
+}
+
+grep -Fq 'BEGIN KratoSSH Perimeter' "$SSH_ETC_DIR/sshd_config.d/00-kratossh-hardening.conf" || {
+    echo "$fix_port_output"
+    echo "Fix-port mode did not write perimeter block"
+    exit 1
+}
+
+grep -Fq 'Port 2222' "$SSH_ETC_DIR/sshd_config.d/00-kratossh-hardening.conf" || {
+    echo "$fix_port_output"
+    echo "Fix-port mode did not apply expected SSH port"
+    exit 1
+}
+
 echo "Running CLI --fix rollback test..."
 SSH_ETC_DIR="$TMP_DIR/failure/etc/ssh"
 export SSH_ETC_DIR

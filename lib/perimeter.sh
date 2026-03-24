@@ -64,14 +64,14 @@ function apply_perimeter_hardening() {
 
     log_info "Applying Perimeter Protection..."
 
-    if [ "$new_port" -eq 22 ]; then
-        log_info "Port 22 selected. Skipping firewall/SELinux changes (assuming default)."
-    else
+    if [ "$new_port" -ne 22 ]; then
         # 1. Configure System (Firewall/SELinux) BEFORE changing SSH config to avoid lockout
         configure_firewall "$new_port"
         configure_selinux "$new_port"
-        
-        # 2. Update SSH Config
-        apply_atomic_sshd_config "Port $new_port" "KratoSSH Perimeter"
+    else
+        log_info "Port 22 selected. Skipping firewall/SELinux changes (assuming default)."
     fi
+
+    # Always update SSH config so --fix-port 22 can restore default port.
+    apply_atomic_sshd_config "Port $new_port" "KratoSSH Perimeter"
 }

@@ -30,6 +30,45 @@ Available for SSH client on:
 * Amazon Linux 2023
 * Alpine Linux
 
+Additional client hardening targets:
+* PuTTY (Linux session files, and Windows/WSL via PowerShell)
+* Bitvise SSH Client (Windows/WSL via PowerShell)
+
+## Compatibility matrix
+
+Server hardening matrix:
+
+| Family | Versions | Status |
+|---|---|---|
+| Ubuntu | 14+ | Supported |
+| Debian | 10+ | Supported |
+| CentOS | 7-8 | Supported |
+| Rocky Linux | 9+ | Supported |
+| Amazon Linux | 2023+ | Supported |
+| Fedora | 36+ | Supported |
+| openSUSE | Leap/Tumbleweed | Supported |
+| Arch | Rolling | Supported |
+| Alpine | Current | Supported |
+| Ubuntu Core | 16/17/18 | Supported |
+| OpenBSD | 6+ | Supported |
+| pfSense | 2.x | Supported |
+
+Client hardening matrix:
+
+| Client | Platform | Status |
+|---|---|---|
+| OpenSSH | Linux distros listed above | Supported |
+| PuTTY | Linux session files | Supported |
+| PuTTY | Windows/WSL (PowerShell) | Supported (MVP) |
+| Bitvise | Windows/WSL (PowerShell) | Supported (MVP) |
+
+Normalization/fallback policy:
+
+* Linux Mint is normalized to Ubuntu equivalents (18->16, 19->18, 20->20, 21->22, 22->24).
+* Kali is normalized to Debian 12 profile.
+* Parrot OS is normalized to Debian profile by major version.
+* Unsupported or too-old distro/version combinations fail fast with non-zero exit.
+
 ## How To
 You can use this script directly without downloading it or you can download and run it.
 
@@ -59,6 +98,8 @@ You have to be root or use sudo to run it
 * `--audit`: Run a read-only security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
 * `--verify`: Run post-hardening verification checks (config, keys, service and effective crypto settings) and print a PASS/FAIL summary by block.
 * `--fix`: Apply server crypto hardening in auto mode.
+* `--fix-port [PORT]`: With `--fix`, also set SSH server port and apply perimeter hardening.
+* `--client-app [openssh|putty|bitvise]`: Select client application when running with `--type client`.
 * `--force-regenerate`: Force host key rotation during hardening (keys are otherwise kept if already present).
 * `-r, --restore`: Restore SSH host keys from backup.
 
@@ -94,9 +135,24 @@ You have to be root or use sudo to run it
 ./KratoSSH.sh --fix
 ```
 
+**Audit + Fix Crypto Hardening + Correct SSH Port**
+```bash
+./KratoSSH.sh --fix --fix-port 2222
+```
+
 **Audit + Fix Crypto Hardening (force key rotation)**
 ```bash
 ./KratoSSH.sh --fix --force-regenerate
+```
+
+**Client hardening for PuTTY**
+```bash
+./KratoSSH.sh --auto --type client --client-app putty
+```
+
+**Client hardening for Bitvise**
+```bash
+./KratoSSH.sh --auto --type client --client-app bitvise
 ```
 
 Note: if your system has /etc/ssh/sshd_config.d but the Include directive is missing in /etc/ssh/sshd_config, KratoSSH now enables it safely (with validation and rollback).

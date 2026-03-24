@@ -17,6 +17,24 @@ AUTO_MODE=false
 TARGET_TYPE=""
 FAST_MODE=false
 FORCE_REGENERATE=false
+FIX_PORT=""
+CLIENT_APP="openssh"
+
+function require_option_value() {
+    local option_name="$1"
+    local option_value="$2"
+
+    if [ -z "$option_value" ] || [[ "$option_value" == -* ]]; then
+        log_error "Option $option_name requires a value."
+        exit 1
+    fi
+}
+
+function normalize_client_app() {
+    local app
+    app="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    printf '%s' "$app"
+}
 
 # Source Libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +47,7 @@ source "$SCRIPT_DIR/lib/network.sh" || { echo "Failed to load lib/network.sh"; e
 source "$SCRIPT_DIR/lib/mfa.sh" || { echo "Failed to load lib/mfa.sh"; exit 1; }
 source "$SCRIPT_DIR/lib/perimeter.sh" || { echo "Failed to load lib/perimeter.sh"; exit 1; }
 source "$SCRIPT_DIR/lib/menu.sh" || { echo "Failed to load lib/menu.sh"; exit 1; }
+source "$SCRIPT_DIR/lib/thirdparty_clients.sh" || { echo "Failed to load lib/thirdparty_clients.sh"; exit 1; }
 
 trap cleanup EXIT INT TERM
 
@@ -170,16 +189,35 @@ function run_hardening() {
     local target_type="$1"
     
     if [ "$target_type" == "client" ]; then
-        target_fn+="C"
-        log_info "Applying Client Hardening for $name $version_num..."
-        if [ "$AUTO_MODE" = false ]; then
-            echo -en " ${TBlue}[?]${TDefault} Confirm apply client hardening? (y/n) "
-            read -r resp
-            [[ ! "$resp" =~ ^[yY] ]] && log_info "Aborted by user." && exit 0
-        fi
-        if ! $target_fn "$version_num"; then
-            die "Client hardening failed for $name $version_num"
-        fi
+        case "$CLIENT_APP" in
+            openssh)
+                target_fn+="C"
+                log_info "Applying OpenSSH client hardening for $name $version_num..."
+                if [ "$AUTO_MODE" = false ]; then
+                    echo -en " ${TBlue}[?]${TDefault} Confirm apply OpenSSH client hardening? (y/n) "
+                    read -r resp
+                    [[ ! "$resp" =~ ^[yY] ]] && log_info "Aborted by user." && exit 0
+                fi
+                if ! $target_fn "$version_num"; then
+                    die "Client hardening failed for $name $version_num"
+                fi
+                ;;
+            putty)
+                log_info "Applying PuTTY client hardening profile..."
+                if ! apply_putty_hardening "$SCRIPT_DIR"; then
+                    die "PuTTY client hardening failed"
+                fi
+                ;;
+            bitvise)
+                log_info "Applying Bitvise client hardening profile..."
+                if ! apply_bitvise_hardening "$SCRIPT_DIR"; then
+                    die "Bitvise client hardening failed"
+                fi
+                ;;
+            *)
+                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise)"
+                ;;
+        esac
     else
         # -- SERVER HARDENING FLOW --
         log_info "Applying Server Hardening for $name $version_num..."
@@ -196,10 +234,20 @@ function run_hardening() {
         if [ "$AUTO_MODE" = false ]; then
             # Launch Interactive Menu to set DO_* variables
             configure_interactive
+            if [ -n "$FIX_PORT" ]; then
+                DO_PERIM=true
+                PERIM_PORT="$FIX_PORT"
+                log_info "Override: perimeter correction enabled on port $PERIM_PORT."
+            fi
         else
             # AUTO MODE: Defaults to Classic KratoSSH (Crypto Only) or we could enable all?
             # Sticking to Crypto Only for safety in auto unless flags added later.
             log_info "Auto-mode: Applying standard Crypto Hardening only."
+            if [ -n "$FIX_PORT" ]; then
+                DO_PERIM=true
+                PERIM_PORT="$FIX_PORT"
+                log_info "Auto-mode: perimeter correction enabled on port $PERIM_PORT."
+            fi
         fi
         
         # 2. Pre-Audit
@@ -302,6 +350,16 @@ while [[ $# -gt 0 ]]; do
             AUTO_MODE=true
             shift
             ;;
+        --fix-port)
+            require_option_value "--fix-port" "${2:-}"
+            FIX_PORT="$2"
+            shift 2
+            ;;
+        --client-app)
+            require_option_value "--client-app" "${2:-}"
+            CLIENT_APP="$(normalize_client_app "$2")"
+            shift 2
+            ;;
         --fast)
             FAST_MODE=true
             log_info "Fast mode enabled: Skipping moduli generation."
@@ -322,6 +380,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --audit             Run read-only security audit on localhost"
             echo "  --verify            Run post-hardening verification checks"
             echo "  --fix               Apply server crypto hardening (auto server mode)"
+            echo "  --fix-port [PORT]   With --fix, also set SSH port and perimeter rules"
+            echo "  --client-app [APP]  Client app: openssh|putty|bitvise (with --type client)"
             echo "  --fast              Skip time-consuming moduli generation"
             echo "  --force-regenerate  Force host key rotation during hardening"
             exit 0
@@ -336,6 +396,7 @@ done
 display_logo
 checkroot
 detect_os
+CLIENT_APP="$(normalize_client_app "$CLIENT_APP")"
 
 if [ -n "$TARGET_TYPE" ]; then
     if [[ "$TARGET_TYPE" =~ ^[cC][lL][iI][eE][nN][tT]$ ]] || [[ "$TARGET_TYPE" =~ ^[cC]$ ]]; then

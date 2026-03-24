@@ -264,7 +264,15 @@ function apply_atomic_sshd_config() {
         mv "$tmp2" "$temp_config"
     else
         # Using a drop-in file
-        echo -e "# BEGIN $block_name\n$content\n# END $block_name" > "$temp_config"
+        if [ -f "$target_config" ]; then
+            cp "$target_config" "$temp_config"
+            if grep -q "# BEGIN $block_name" "$temp_config"; then
+                sed -i "/# BEGIN $block_name/,/# END $block_name/d" "$temp_config"
+            fi
+            printf '\n# BEGIN %s\n%s\n# END %s\n' "$block_name" "$content" "$block_name" >> "$temp_config"
+        else
+            echo -e "# BEGIN $block_name\n$content\n# END $block_name" > "$temp_config"
+        fi
 
         if [ -f "$target_config" ]; then
             old_target_backup=$(mktemp) || {

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- **CLI**: Added `--fix-port [PORT]` to combine crypto hardening with perimeter port correction in `--fix` mode.
+- **CLI**: Added `--client-app [openssh|putty|bitvise]` to select client hardening target explicitly.
+- **Client hardening**: Added initial PuTTY and Bitvise client hardening support through Linux session-file updates (PuTTY) and PowerShell scripts for Windows/WSL.
+- **Testing**: Added functional tests for third-party client hardening (`putty` and `bitvise`) and integrated them into the smoke suite.
+
+### Fixed
+- **Safety**: Updated atomic drop-in writes so multiple KratoSSH blocks (e.g., crypto + perimeter) can coexist without overwriting each other.
+- **Reliability**: Unsupported distro/version paths now fail fast with non-zero exit codes instead of returning silent success.
+- **Testing**: Added regression tests to enforce fail-fast behavior for unsupported distro/version combinations.
+- **CLI**: Added strict argument validation for `--fix-port` and `--client-app` to prevent missing-value parsing errors.
+- **Testing**: Added regression tests for CLI option validation and unsupported client-app handling.
+- **Testing**: Added distro family matrix tests (supported families, normalized aliases, and unsupported boundaries).
+
 ## [2026-03-24] - v20260324_1105
 ### Added
 - **CLI**: Added `--fix` to apply server crypto hardening in non-interactive mode and `--verify` to run post-hardening verification with PASS/FAIL block summaries.

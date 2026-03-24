@@ -8,7 +8,7 @@ function Ubuntu() {
 	version_num=$1
 	if [ "$version_num" -lt 14 ]; then
 		log_error "Tu versión de Ubuntu ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de Ubuntu ($version_num) es compatible."
@@ -52,7 +52,8 @@ function Ubuntu() {
             "$SSH_CIPHERS" \
             "$SSH_MACS" || return 1
     else
-        log_warn " Estas en Ubuntu version $(version) y no se ha implementado nada para ello todavía."
+        log_error "Estas en Ubuntu version $version_num y no se ha implementado nada para ello todavía."
+        return 1
     fi
     #Restart OpenSSH server
     restart_ssh || return 1
@@ -62,7 +63,7 @@ function Debian() {
 	version_num=$1
 	if [ $version_num -lt 10 ]; then
 		log_error "Tu versión de Debian ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de Debian ($version_num) es compatible."
@@ -88,7 +89,8 @@ function Debian() {
             "$SSH_MACS" \
             "ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com" || return 1
     else
-        log_warn " Estas en Debian version $(version_num) y no se ha implementado nada para ello todavía."
+        log_error "Estas en Debian version $version_num y no se ha implementado nada para ello todavía."
+        return 1
     fi
     restart_ssh || return 1
 }
@@ -97,7 +99,7 @@ function CentOS() {
 	version_num=$1
 	if [ $version_num -lt 7 ]; then
 		log_error "Tu versión de CentOS ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de CentOS ($version_num) es compatible."
@@ -165,7 +167,8 @@ EOF
         ;;
 
         *)
-            echo -e " Estas en CentOS version $(version) y no se ha implementado nada para ello todavía."
+            log_error "Estas en CentOS version $version_num y no se ha implementado nada para ello todavía."
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -175,7 +178,7 @@ function Amazon() {
 	version_num=$1
 	if [ $version_num -lt 2023 ]; then
 		log_error "Tu versión de Amazon Linux ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de Amazon Linux ($version_num) es compatible."
@@ -193,7 +196,8 @@ function Amazon() {
         ;;
 
         *)
-            echo -e "Estas en Amazon Linux version $(version) y no se ha implementado nada para ello todavía"
+            log_error "Estas en Amazon Linux version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -203,7 +207,7 @@ function Rocky() {
 	version_num=$1
 	if [ $version_num -lt 9 ]; then
 		log_error "Tu versión de Rocky Linux ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de Rocky Linux ($version_num) es compatible."
@@ -216,7 +220,8 @@ function Rocky() {
         ;;
 
         *)
-            echo -e "Estas en Rocky Linux version $(version) y no se ha implementado nada para ello todavía"
+            log_error "Estas en Rocky Linux version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -226,7 +231,7 @@ function UCore() {
 	version_num=$1
 	if [ $version_num -lt 16 ]; then
 		log_error "Tu versión de Ubuntu Core ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de Ubuntu Core ($version_num) es compatible."
@@ -267,7 +272,8 @@ function UCore() {
         ;;
 
         *)
-            echo -e "Estas en Ubuntu Core version $(version) y no se ha implementado nada para ello todavía"
+            log_error "Estas en Ubuntu Core version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -277,7 +283,7 @@ function pfSense() {
 	version_num=$1
 	if [ $version_num -lt 2 ]; then
 		log_error "Tu versión de pfSense ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de pfSense ($version_num) es compatible."
@@ -297,7 +303,8 @@ function pfSense() {
         ;;
 
         *)
-            echo -e "Estas en pfSense version $(version_num) y no se ha implementado nada para ello todavía"
+            log_error "Estas en pfSense version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -307,7 +314,7 @@ function OpenBSD() {
 	version_num=$1
 	if [ $version_num -lt 6 ]; then
 		log_error "Tu versión de OpenBSD ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
     
     log_success "Tu versión de OpenBSD ($version_num) es compatible."
@@ -326,7 +333,8 @@ function OpenBSD() {
         ;;
 
         *)
-            echo -e "Estas en OpenBSD version $(version_num) y no se ha implementado nada para ello todavía"
+            log_error "Estas en OpenBSD version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
     restart_ssh || return 1
@@ -336,7 +344,7 @@ function UbuntuC() {
 	version_num=$1
 	if [ "$version_num" -lt 14 ]; then
 		log_error "Tu versión de Ubuntu ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
 
     log_success "Tu versión de Ubuntu ($version_num) es compatible."
@@ -371,7 +379,8 @@ function UbuntuC() {
         ;;
 
         *)
-            echo -e " Estas en Ubuntu version $(version_num) y no se ha implementado nada para ello todavía."
+            log_error "Estas en Ubuntu version $version_num y no se ha implementado nada para ello todavía."
+            return 1
         ;;
     esac
 }
@@ -380,7 +389,7 @@ function DebianC() {
 	version_num=$1
 	if [ $version_num -lt 12 ]; then
 		log_error "Tu versión de Debian ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
 
     log_success "Tu versión de Debian ($version_num) es compatible."
@@ -391,7 +400,8 @@ function DebianC() {
         ;;
 
         *)
-            echo -e " Estas en Debian version $(version_num) y no se ha implementado nada para ello todavía."
+            log_error "Estas en Debian version $version_num y no se ha implementado nada para ello todavía."
+            return 1
         ;;
     esac
 }
@@ -400,7 +410,7 @@ function AmazonC() {
 	version_num=$1
 	if [ $version_num -lt 2023 ]; then
 		log_error "Tu versión de Amazon Linux ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
 
     log_success "Tu versión de Amazon Linux ($version_num) es compatible."
@@ -411,7 +421,8 @@ function AmazonC() {
         ;;
 
         *)
-            echo -e "Estas en Amazon Linux version $(version_num) y no se ha implementado nada para ello todavía"
+            log_error "Estas en Amazon Linux version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
 }
@@ -420,7 +431,7 @@ function RockyC() {
 	version_num=$1
 	if [ $version_num -lt 9 ]; then
 		log_error "Tu versión de Rocky Linux ($version_num) es demasiado antigua."
-        return
+        return 1
 	fi
 
     log_success "Tu versión de Rocky Linux ($version_num) es compatible."
@@ -431,7 +442,8 @@ function RockyC() {
         ;;
 
         *)
-            echo -e "Estas en Rocky Linux version $(version_num) y no se ha implementado nada para ello todavía"
+            log_error "Estas en Rocky Linux version $version_num y no se ha implementado nada para ello todavía"
+            return 1
         ;;
     esac
 }
@@ -440,7 +452,7 @@ function Fedora() {
     version_num=$1
     if [ "$version_num" != "rolling" ] && { [ -z "$version_num" ] || ! [ "$version_num" -ge 36 ] 2>/dev/null; }; then
         log_error "Tu versión de Fedora ($version_num) es demasiado antigua. Se requiere Fedora 36+."
-        return
+        return 1
     fi
 
     log_success "Tu versión de Fedora ($version_num) es compatible."
