@@ -67,6 +67,10 @@ Client hardening matrix:
 | macOS SSH | macOS (`~/.ssh/config`, via `--client-app macos-ssh`) | Supported |
 | SecureCRT | Linux/macOS (INI session files) | Supported |
 | SecureCRT | Windows/WSL (PowerShell, per-session .ini) | Supported |
+| WinSCP | Linux/macOS (portable `winscp.ini`) | Supported |
+| WinSCP | Windows/WSL (PowerShell, registry + portable INI) | Supported |
+| Termius | Linux/macOS (`storage.json` vault, via python3) | Supported |
+| Termius | Windows/WSL (PowerShell, `storage.json` vault) | Supported |
 
 Normalization/fallback policy:
 
@@ -200,5 +204,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add `WinSCP` client hardening support (Windows registry `Interface\Commander` and `SessionData` keys).
-* Add `Termius` client hardening support (export/import vault JSON patch).
+* Add `MobaXterm` client hardening support (INI session file, `[SSH]` section).
+* Add central `--list-clients` flag to enumerate all supported client apps.

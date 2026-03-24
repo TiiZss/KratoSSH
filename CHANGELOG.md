@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2026-03-24] - v20260324_1320
+## [2026-03-24] - v20260324_1400
+### Added
+- **Client hardening**: Added `--client-app winscp` — on Linux/macOS patches per-session keys (`KexList`, `CipherList`, `MacList`, `HostKeyList`, `AgentFwd`) in portable `winscp.ini` under `~/.config/` or `~/.local/share/`; on Windows/WSL delegates to `windows/winscp_hardening.ps1` which patches `HKCU\Software\Martin Prikryl\WinSCP 2\Sessions` registry keys and any portable `WinSCP.ini` files.
+- **Client hardening**: Added `--client-app termius` — on Linux/macOS uses python3 to patch `storage.json` setting `kex_algorithms`, `ciphers`, `macs`, `host_key_algorithms`, `forward_agent: false`, `forward_x11: false` on all hosts and groups; on Windows/WSL delegates to `windows/termius_hardening.ps1` which does the same via PowerShell `ConvertFrom-Json`/`ConvertTo-Json`.
+- **Testing**: Added WinSCP Linux INI tests, WinSCP Windows fallback test, Termius Linux JSON tests (cipher, forward_agent), and Termius Windows fallback test to `test-client-apps.sh`.
+
+### Changed
+- **CLI**: `--client-app` now accepts `openssh`, `putty`, `bitvise`, `securecrt`, `macos-ssh`, `winscp`, `termius`.
+- **README**: Updated client hardening matrix with WinSCP and Termius rows. Updated Next steps.
 ### Added
 - **Client hardening**: Added `--client-app macos-ssh` — writes a hardened `Host *` block to `~/.ssh/config` on macOS (Darwin) with strong KexAlgorithms, Ciphers, MACs, HostKeyAlgorithms, `ForwardAgent no`, `ForwardX11 no`, `Compression no`, and `RekeyLimit 1G 60m`. Idempotent: re-running replaces the existing KratoSSH block without duplicating it.
 - **Client hardening**: Added `--client-app securecrt` — patches per-session `.ini` files under `~/.vandyke/SecureCRT/Config/Sessions/` on Linux/macOS, and falls back to `windows/securecrt_hardening.ps1` on Windows/WSL. The PowerShell script locates VanDyke config in both legacy and modern paths, backs up the full config tree, and patches `Cipher List`, `MAC List`, `Kex List`, `Host Key List`, `Forward Agent`, and `Forward X11` in every session file.

@@ -229,4 +229,105 @@ echo "$securecrt_win_output" | grep -Fq 'windows/securecrt_hardening.ps1' || {
     exit 1
 }
 
+# ── WinSCP Linux INI test ────────────────────────────────────────────────
+echo "Running WinSCP Linux INI client hardening test..."
+
+mkdir -p "$HOME_DIR/.config"
+cat > "$HOME_DIR/.config/winscp.ini" <<'EOF'
+[Configuration]
+[Sessions\myserver]
+HostName=192.0.2.1
+
+EOF
+
+winscp_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app winscp 2>&1)"
+winscp_status=$?
+
+if [ "$winscp_status" -ne 0 ]; then
+    echo "$winscp_output"
+    echo "WinSCP Linux client hardening should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'KexList=ecdh' "$HOME_DIR/.config/winscp.ini" || {
+    echo "$winscp_output"
+    echo "WinSCP INI KexList was not set"
+    exit 1
+}
+
+grep -Fq 'AgentFwd=0' "$HOME_DIR/.config/winscp.ini" || {
+    echo "$winscp_output"
+    echo "WinSCP INI AgentFwd was not disabled"
+    exit 1
+}
+
+# ── WinSCP Windows fallback test ────────────────────────────────────────────
+echo "Running WinSCP Windows fallback test..."
+
+rm -f "$HOME_DIR/.config/winscp.ini"
+
+winscp_win_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app winscp 2>&1)"
+winscp_win_status=$?
+
+if [ "$winscp_win_status" -ne 0 ]; then
+    echo "$winscp_win_output"
+    echo "WinSCP Windows fallback should have succeeded"
+    exit 1
+fi
+
+echo "$winscp_win_output" | grep -Fq 'windows/winscp_hardening.ps1' || {
+    echo "$winscp_win_output"
+    echo "WinSCP Windows fallback did not call winscp_hardening.ps1"
+    exit 1
+}
+
+# ── Termius Linux JSON test ────────────────────────────────────────────────
+echo "Running Termius Linux JSON client hardening test..."
+
+mkdir -p "$HOME_DIR/.config/Termius"
+cat > "$HOME_DIR/.config/Termius/storage.json" <<'EOF'
+{"hosts":[{"id":"aaa","label":"myserver","address":"192.0.2.1"}],"groups":[]}
+EOF
+
+termius_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app termius 2>&1)"
+termius_status=$?
+
+if [ "$termius_status" -ne 0 ]; then
+    echo "$termius_output"
+    echo "Termius Linux client hardening should have succeeded"
+    exit 1
+fi
+
+grep -Fq 'chacha20-poly1305' "$HOME_DIR/.config/Termius/storage.json" || {
+    echo "$termius_output"
+    echo "Termius storage.json cipher was not updated"
+    exit 1
+}
+
+grep -Fq '"forward_agent": false' "$HOME_DIR/.config/Termius/storage.json" || {
+    echo "$termius_output"
+    echo "Termius storage.json forward_agent was not disabled"
+    exit 1
+}
+
+# ── Termius Windows fallback test ───────────────────────────────────────────
+echo "Running Termius Windows fallback test..."
+
+rm -f "$HOME_DIR/.config/Termius/storage.json"
+
+termius_win_output="$(HOME="$HOME_DIR" bash "$REPO_DIR/KratoSSH.sh" --auto --type client --client-app termius 2>&1)"
+termius_win_status=$?
+
+if [ "$termius_win_status" -ne 0 ]; then
+    echo "$termius_win_output"
+    echo "Termius Windows fallback should have succeeded"
+    exit 1
+fi
+
+echo "$termius_win_output" | grep -Fq 'windows/termius_hardening.ps1' || {
+    echo "$termius_win_output"
+    echo "Termius Windows fallback did not call termius_hardening.ps1"
+    exit 1
+}
+
 echo "Third-party client hardening tests passed."

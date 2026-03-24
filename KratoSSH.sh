@@ -229,8 +229,20 @@ function run_hardening() {
                     die "macOS SSH config hardening failed"
                 fi
                 ;;
+            winscp)
+                log_info "Applying WinSCP client hardening profile..."
+                if ! apply_winscp_hardening "$SCRIPT_DIR"; then
+                    die "WinSCP client hardening failed"
+                fi
+                ;;
+            termius)
+                log_info "Applying Termius client hardening profile..."
+                if ! apply_termius_hardening "$SCRIPT_DIR"; then
+                    die "Termius client hardening failed"
+                fi
+                ;;
             *)
-                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise, securecrt, macos-ssh)"
+                die "Unknown client app '$CLIENT_APP' (valid: openssh, putty, bitvise, securecrt, macos-ssh, winscp, termius)"
                 ;;
         esac
     else

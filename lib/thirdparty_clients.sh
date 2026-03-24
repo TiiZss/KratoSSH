@@ -202,3 +202,138 @@ function apply_securecrt_hardening() {
     # On Windows/WSL: use PowerShell to patch registry and .ini profiles
     _run_windows_hardening_script "$script_dir/windows/securecrt_hardening.ps1"
 }
+
+function apply_winscp_hardening() {
+    local script_dir="$1"
+
+    # Linux/macOS: patch the portable winscp.ini if present
+    local ini_candidates=(
+        "$HOME/.config/winscp.ini"
+        "$HOME/.local/share/winscp.ini"
+    )
+
+    local ini_path
+    for ini_path in "${ini_candidates[@]}"; do
+        [ -f "$ini_path" ] || continue
+
+        log_info "Detected WinSCP INI at $ini_path"
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would harden WinSCP INI at $ini_path"
+            return 0
+        fi
+
+        local backup="${ini_path}.kratossh_$(date +%Y%m%d_%H%M%S).bak"
+        cp "$ini_path" "$backup"
+        log_info "Backed up $ini_path to $backup"
+
+        # Process each [Sessions\<name>] section: patch or append algorithm keys
+        local tmp
+        tmp="$(mktemp)"
+        local in_session=0
+        local session_keys_done=0
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^\[Sessions\\ ]]; then
+                in_session=1
+                session_keys_done=0
+                printf '%s\n' "$line" >> "$tmp"
+                continue
+            fi
+            if [[ "$line" =~ ^\[ ]] && [[ ! "$line" =~ ^\[Sessions\\ ]]; then
+                in_session=0
+            fi
+
+            if [ "$in_session" -eq 1 ]; then
+                # Skip existing algorithm lines (will be re-appended at end of section)
+                if [[ "$line" =~ ^(KexList|CipherList|MacList|HostKeyList|AgentFwd)= ]]; then
+                    continue
+                fi
+                # At blank line ending a section, inject hardened values first
+                if [ -z "$line" ] && [ "$session_keys_done" -eq 0 ]; then
+                    printf 'KexList=ecdh,dh-gex-sha256,dh-group16-sha512,dh-group18-sha512\n' >> "$tmp"
+                    printf 'CipherList=chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr\n' >> "$tmp"
+                    printf 'MacList=hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com\n' >> "$tmp"
+                    printf 'HostKeyList=ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n' >> "$tmp"
+                    printf 'AgentFwd=0\n' >> "$tmp"
+                    session_keys_done=1
+                fi
+            fi
+            printf '%s\n' "$line" >> "$tmp"
+        done < "$ini_path"
+
+        mv "$tmp" "$ini_path"
+        log_success "WinSCP INI hardened at $ini_path"
+        return 0
+    done
+
+    # Windows/WSL: registry + portable INI via PowerShell
+    _run_windows_hardening_script "$script_dir/windows/winscp_hardening.ps1"
+}
+
+function apply_termius_hardening() {
+    local script_dir="$1"
+
+    # Linux/macOS: patch the Termius storage.json vault directly
+    local storage_candidates=(
+        "$HOME/.config/Termius/storage.json"
+        "$HOME/.termius/storage.json"
+        "$HOME/Library/Application Support/Termius/storage.json"
+    )
+
+    local storage_path
+    for storage_path in "${storage_candidates[@]}"; do
+        [ -f "$storage_path" ] || continue
+
+        log_info "Detected Termius storage at $storage_path"
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would harden Termius storage at $storage_path"
+            return 0
+        fi
+
+        if ! command -v python3 >/dev/null 2>&1; then
+            log_error "python3 is required to patch Termius storage.json but was not found."
+            return 1
+        fi
+
+        local backup="${storage_path}.kratossh_$(date +%Y%m%d_%H%M%S).bak"
+        cp "$storage_path" "$backup"
+        log_info "Backed up $storage_path to $backup"
+
+        python3 - "$storage_path" <<'PYEOF'
+import sys, json
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as f:
+    vault = json.load(f)
+
+kex    = 'curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512'
+cipher = 'chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr'
+mac    = 'hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com'
+hostkey = 'ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
+
+patched = 0
+for key in ('hosts', 'groups'):
+    for node in vault.get(key, []):
+        cfg = node.setdefault('ssh_config', {})
+        cfg['kex_algorithms']     = kex
+        cfg['ciphers']            = cipher
+        cfg['macs']               = mac
+        cfg['host_key_algorithms']= hostkey
+        cfg['forward_agent']      = False
+        cfg['forward_x11']        = False
+        patched += 1
+
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(vault, f, indent=2, ensure_ascii=False)
+
+print(f'[KratoSSH] Patched {patched} Termius node(s) in {path}')
+PYEOF
+        log_success "Termius storage hardened at $storage_path"
+        return 0
+    done
+
+    # Windows/WSL: PowerShell JSON patch
+    _run_windows_hardening_script "$script_dir/windows/termius_hardening.ps1"
+}
