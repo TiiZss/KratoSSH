@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1515
+### Added
+- **CLI**: Added `--audit-client` for read-only client profile inspection by `--client-app`.
+- **Testing**: Added `tests/test-audit-client.sh` and integrated it into `tests/test-syntax.sh`.
+- **Docs**: Added a new `mosh + tmux guidance` section in README with SSH/tmux snippets and recommended workflow.
+
+### Changed
+- **README**: Updated options list to include `--audit-client`, `--list-clients`, and the expanded `--client-app` model.
+- **Client audit**: Added read-only audits for OpenSSH, PuTTY, macOS SSH block, SecureCRT, WinSCP, Termius, and MobaXterm profiles.
+
 ## [2026-03-24] - v20260324_1430
 ### Added
 - **Client hardening**: Added `--client-app mobaxterm` — on Linux/macOS patches `[SSH*]` sections in `MobaXterm.ini` (`SSH_Kex`, `SSH_Cipher`, `SSH_MAC`, `SSH_HostKey`, `SSH_AgentFwd=0`); on Windows/WSL delegates to `windows/mobaxterm_hardening.ps1` which locates the INI in `%APPDATA%\MobaXterm\`, `Documents\MobaXterm\`, and beside the executable.

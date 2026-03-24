@@ -42,6 +42,9 @@ bash "$REPO_DIR/tests/test-distro-matrix.sh" || exit 1
 echo "Running CLI argument validation tests..."
 bash "$REPO_DIR/tests/test-arg-validation.sh" || exit 1
 
+echo "Running client audit tests..."
+bash "$REPO_DIR/tests/test-audit-client.sh" || exit 1
+
 if command -v shellcheck >/dev/null 2>&1; then
     echo "Running shellcheck..."
     shellcheck -x "$REPO_DIR/KratoSSH.sh" "$REPO_DIR"/lib/*.sh "$REPO_DIR"/tests/*.sh || exit 1

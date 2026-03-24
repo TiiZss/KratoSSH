@@ -110,12 +110,48 @@ You have to be root or use sudo to run it
 * `-a, --auto`: Run in non-interactive mode (requires `--type`).
 * `-t, --type [server|client]`: Specify operation type for auto mode.
 * `--audit`: Run a read-only security audit against localhost using `ssh-audit` (automatically detects custom SSH ports).
+* `--audit-client`: Run a read-only client profile audit for the selected app (`--client-app`) without making changes.
 * `--verify`: Run post-hardening verification checks (config, keys, service and effective crypto settings) and print a PASS/FAIL summary by block.
 * `--fix`: Apply server crypto hardening in auto mode.
 * `--fix-port [PORT]`: With `--fix`, also set SSH server port and apply perimeter hardening.
-* `--client-app [openssh|putty|bitvise]`: Select client application when running with `--type client`.
+* `--client-app [APP]`: Select client application when running with `--type client` (see `--list-clients`).
+* `--list-clients`: Print all supported values for `--client-app` and exit.
 * `--force-regenerate`: Force host key rotation during hardening (keys are otherwise kept if already present).
 * `-r, --restore`: Restore SSH host keys from backup.
+
+## mosh + tmux guidance
+
+`mosh` uses UDP (`60000:61000` by default) and still needs SSH for authentication/bootstrap. A hardened baseline that works well in roaming or unstable links:
+
+1. Keep SSH hardening active with KratoSSH first (`--fix` on server, `--type client` on clients).
+2. Open UDP range `60000:61000` only on trusted perimeter zones.
+3. Keep `tmux` as persistent shell layer so sessions survive network roaming and temporary disconnects.
+
+Recommended `~/.ssh/config` snippet for mosh bootstrap:
+
+```sshconfig
+Host my-mosh-host
+	HostName your.server.example
+	User youruser
+	ServerAliveInterval 30
+	ServerAliveCountMax 3
+	Compression no
+```
+
+Recommended `tmux` defaults (`~/.tmux.conf`):
+
+```tmux
+set -g mouse on
+set -g history-limit 200000
+set -g status-interval 5
+set -g remain-on-exit on
+```
+
+Example workflow:
+
+```bash
+mosh youruser@your.server.example -- tmux new -A -s ops
+```
 
 ### Examples
 
@@ -206,5 +242,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add `mosh` + `tmux` hardening guidance page (SSH flags and config snippets).
-* Add `--audit-client` flag for read-only client config inspection without making changes.
+* Extend `--audit-client` with Windows registry-read checks for Bitvise/WinSCP/MobaXterm.
+* Add `--audit-client --client-app all --strict` mode to fail on unsupported or missing profile sources.

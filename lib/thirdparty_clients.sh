@@ -416,3 +416,195 @@ function apply_mobaxterm_hardening() {
 function list_supported_clients() {
     printf 'bitvise macos-ssh mobaxterm openssh putty securecrt termius winscp\n'
 }
+
+function _audit_expect_grep() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+
+    if grep -Eiq "$pattern" "$file"; then
+        log_success "[AUDIT] $label"
+        return 0
+    fi
+
+    log_error "[AUDIT] $label missing or insecure"
+    return 1
+}
+
+function audit_client_openssh() {
+    local cfg="$HOME/.ssh/config"
+    local fail=0
+
+    if [ ! -f "$cfg" ]; then
+        log_error "[AUDIT] OpenSSH client config not found at $cfg"
+        return 1
+    fi
+
+    _audit_expect_grep "$cfg" '^[[:space:]]*KexAlgorithms[[:space:]].*curve25519-sha256' 'OpenSSH KexAlgorithms' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*Ciphers[[:space:]].*(chacha20-poly1305@openssh.com|aes256-gcm@openssh.com)' 'OpenSSH Ciphers' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*MACs[[:space:]].*hmac-sha2-256-etm@openssh.com' 'OpenSSH MACs' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*ForwardAgent[[:space:]]+no' 'OpenSSH ForwardAgent no' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*ForwardX11[[:space:]]+no' 'OpenSSH ForwardX11 no' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*Compression[[:space:]]+no' 'OpenSSH Compression no' || fail=1
+
+    return $fail
+}
+
+function audit_client_putty() {
+    local dir="$HOME/.putty/sessions"
+    local fail=0
+    local count=0
+    local file
+
+    if [ ! -d "$dir" ]; then
+        log_warn "[AUDIT] PuTTY sessions not found at $dir"
+        return 0
+    fi
+
+    for file in "$dir"/*; do
+        [ -f "$file" ] || continue
+        count=$((count + 1))
+        _audit_expect_grep "$file" '^Cipher=chacha20,aes,blowfish,3des,WARN$' "PuTTY Cipher ($file)" || fail=1
+        _audit_expect_grep "$file" '^KEX=ecdh,dh-gex-sha256,dh-group14-sha1,rsa,WARN$' "PuTTY KEX ($file)" || fail=1
+        _audit_expect_grep "$file" '^HostKey=ed25519,ecdsa,rsa,dsa,WARN$' "PuTTY HostKey ($file)" || fail=1
+        _audit_expect_grep "$file" '^AgentFwd=0$' "PuTTY AgentFwd=0 ($file)" || fail=1
+    done
+
+    if [ "$count" -eq 0 ]; then
+        log_warn "[AUDIT] No PuTTY session files found under $dir"
+        return 0
+    fi
+
+    return $fail
+}
+
+function audit_client_macos_ssh() {
+    local cfg="$HOME/.ssh/config"
+    local fail=0
+
+    if [ ! -f "$cfg" ]; then
+        log_error "[AUDIT] macOS SSH config not found at $cfg"
+        return 1
+    fi
+
+    _audit_expect_grep "$cfg" '^# BEGIN KratoSSH macOS hardening$' 'macOS SSH KratoSSH block present' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*RekeyLimit[[:space:]]+1G[[:space:]]+60m' 'macOS SSH RekeyLimit 1G 60m' || fail=1
+    _audit_expect_grep "$cfg" '^[[:space:]]*ForwardAgent[[:space:]]+no' 'macOS SSH ForwardAgent no' || fail=1
+
+    return $fail
+}
+
+function audit_client_securecrt() {
+    local dir="$HOME/.vandyke/SecureCRT/Config/Sessions"
+    local file
+    local fail=0
+    local count=0
+
+    if [ ! -d "$dir" ]; then
+        log_warn "[AUDIT] SecureCRT sessions not found at $dir"
+        return 0
+    fi
+
+    for file in "$dir"/*.ini; do
+        [ -f "$file" ] || continue
+        count=$((count + 1))
+        _audit_expect_grep "$file" '^Cipher List=ChaCha20-Poly1305' "SecureCRT Cipher List ($file)" || fail=1
+        _audit_expect_grep "$file" '^Forward Agent=00000000$' "SecureCRT Forward Agent disabled ($file)" || fail=1
+    done
+
+    if [ "$count" -eq 0 ]; then
+        log_warn "[AUDIT] No SecureCRT .ini session files found under $dir"
+        return 0
+    fi
+
+    return $fail
+}
+
+function audit_client_winscp() {
+    local file="$HOME/.config/winscp.ini"
+    local fail=0
+
+    if [ ! -f "$file" ]; then
+        log_warn "[AUDIT] WinSCP INI not found at $file"
+        return 0
+    fi
+
+    _audit_expect_grep "$file" '^KexList=ecdh' 'WinSCP KexList present' || fail=1
+    _audit_expect_grep "$file" '^AgentFwd=0$' 'WinSCP AgentFwd=0' || fail=1
+    return $fail
+}
+
+function audit_client_termius() {
+    local file="$HOME/.config/Termius/storage.json"
+    local fail=0
+
+    if [ ! -f "$file" ]; then
+        log_warn "[AUDIT] Termius storage not found at $file"
+        return 0
+    fi
+
+    _audit_expect_grep "$file" '"ciphers"[[:space:]]*:[[:space:]]*".*chacha20-poly1305@openssh.com' 'Termius ciphers include chacha20-poly1305' || fail=1
+    _audit_expect_grep "$file" '"forward_agent"[[:space:]]*:[[:space:]]*false' 'Termius forward_agent disabled' || fail=1
+    return $fail
+}
+
+function audit_client_mobaxterm() {
+    local file="$HOME/.config/MobaXterm/MobaXterm.ini"
+    local fail=0
+
+    if [ ! -f "$file" ]; then
+        log_warn "[AUDIT] MobaXterm INI not found at $file"
+        return 0
+    fi
+
+    _audit_expect_grep "$file" '^SSH_Kex=curve25519-sha256' 'MobaXterm SSH_Kex hardened' || fail=1
+    _audit_expect_grep "$file" '^SSH_AgentFwd=0$' 'MobaXterm SSH_AgentFwd disabled' || fail=1
+    return $fail
+}
+
+function audit_client_bitvise() {
+    log_warn "[AUDIT] Bitvise read-only audit is not yet implemented for registry-only configurations."
+    return 0
+}
+
+function audit_client_hardening() {
+    local app="$1"
+    local fail=0
+    local c
+
+    _audit_one() {
+        local target="$1"
+        case "$target" in
+            openssh) audit_client_openssh || return 1 ;;
+            putty) audit_client_putty || return 1 ;;
+            bitvise) audit_client_bitvise || return 1 ;;
+            securecrt) audit_client_securecrt || return 1 ;;
+            macos-ssh) audit_client_macos_ssh || return 1 ;;
+            winscp) audit_client_winscp || return 1 ;;
+            termius) audit_client_termius || return 1 ;;
+            mobaxterm) audit_client_mobaxterm || return 1 ;;
+            *)
+                log_error "[AUDIT] Unknown client app '$target'"
+                return 1
+                ;;
+        esac
+        return 0
+    }
+
+    if [ "$app" = "all" ]; then
+        for c in $(list_supported_clients); do
+            log_info "[AUDIT] Checking client profile: $c"
+            _audit_one "$c" || fail=1
+        done
+    else
+        _audit_one "$app" || fail=1
+    fi
+
+    if [ "$fail" -eq 0 ]; then
+        log_success "Client audit completed: no failed checks."
+        return 0
+    fi
+
+    log_error "Client audit completed: one or more checks failed."
+    return 1
+}

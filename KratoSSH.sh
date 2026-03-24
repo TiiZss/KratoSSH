@@ -19,6 +19,7 @@ FAST_MODE=false
 FORCE_REGENERATE=false
 FIX_PORT=""
 CLIENT_APP="openssh"
+AUDIT_CLIENT=false
 
 function require_option_value() {
     local option_name="$1"
@@ -373,6 +374,10 @@ while [[ $# -gt 0 ]]; do
             audit_system
             exit $?
             ;;
+        --audit-client)
+            AUDIT_CLIENT=true
+            shift
+            ;;
         --verify)
             # verify_hardening_state performs local post-hardening checks
             verify_hardening_state
@@ -415,6 +420,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -t, --type [C|S]    Specify Client (C) or Server (S)"
             echo "  -r, --restore       Restore SSH keys from latest backup"
             echo "  --audit             Run read-only security audit on localhost"
+            echo "  --audit-client      Run read-only client profile audit (use with --client-app [APP] or all)"
             echo "  --verify            Run post-hardening verification checks"
             echo "  --fix               Apply server crypto hardening (auto server mode)"
             echo "  --fix-port [PORT]   With --fix, also set SSH port and perimeter rules"
@@ -435,6 +441,11 @@ display_logo
 checkroot
 detect_os
 CLIENT_APP="$(normalize_client_app "$CLIENT_APP")"
+
+if [ "$AUDIT_CLIENT" = true ]; then
+    audit_client_hardening "$CLIENT_APP"
+    exit $?
+fi
 
 if [ -n "$TARGET_TYPE" ]; then
     if [[ "$TARGET_TYPE" =~ ^[cC][lL][iI][eE][nN][tT]$ ]] || [[ "$TARGET_TYPE" =~ ^[cC]$ ]]; then
