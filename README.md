@@ -114,6 +114,7 @@ You have to be root or use sudo to run it
 * `--strict`: With `--audit-client`, fail when profile sources are missing or unavailable.
 * `--json`: With `--audit-client`, emit compact JSON array suitable for CI parsing.
 * `--json-pretty`: With `--audit-client`, emit stable sorted pretty JSON for deterministic CI diffs.
+* `--summary`: With `--audit-client`, print a per-client pass/fail/warn count table.
 * `--verify`: Run post-hardening verification checks (config, keys, service and effective crypto settings) and print a PASS/FAIL summary by block.
 * `--fix`: Apply server crypto hardening in auto mode.
 * `--fix-port [PORT]`: With `--fix`, also set SSH server port and apply perimeter hardening.
@@ -245,5 +246,5 @@ shellcheck -x KratoSSH.sh lib/*.sh tests/*.sh
 The repository also includes a GitHub Actions workflow that runs Bash syntax checks and `shellcheck` on every push and pull request.
 
 ## Next steps
-* Add native Windows file-based profile discovery for `SecureCRT` and `Termius` in audit mode (without relying on Linux paths).
-* Add `--audit-client --summary` mode to print pass/fail/warn counters per client.
+* Add per-host SSH server audit scheduling (`--cron-audit`) to periodically run `--audit` and email diff reports.
+* Add `--audit-client --export-csv` to write the JSON output as a CSV for spreadsheet tooling.

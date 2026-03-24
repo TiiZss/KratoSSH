@@ -271,4 +271,151 @@ echo "$first_client_line" | grep -Fq '"client":"bitvise"' || {
     exit 1
 }
 
+# ── SecureCRT Windows path discovery test ────────────────────────────────────
+echo "Running --audit-client SecureCRT Windows path discovery test..."
+
+# Simulate a %APPDATA%\VanDyke\Config\Sessions directory with a hardened .ini
+mkdir -p "$TMP_DIR/win_appdata/VanDyke/Config/Sessions"
+cat > "$TMP_DIR/win_appdata/VanDyke/Config/Sessions/default.ini" <<'EOF'
+Cipher List=ChaCha20-Poly1305
+Forward Agent=00000000
+EOF
+
+# Mock powershell.exe: returns win path for ApplicationData, exit 2 otherwise
+cat > "$MOCK_BIN/powershell.exe" <<ENDMOCK
+#!/bin/bash
+args="\$*"
+if printf '%s' "\$args" | grep -q "ApplicationData"; then
+    printf '%s\r\n' "${TMP_DIR}/win_appdata"
+    exit 0
+fi
+exit 2
+ENDMOCK
+chmod +x "$MOCK_BIN/powershell.exe"
+
+# Mock wslpath to convert win paths to the same TMP_DIR equivalents
+cat > "$MOCK_BIN/wslpath" <<ENDWSL
+#!/bin/bash
+# Convert backslash path to forward slash, stripping drive
+arg="\${*: -1}"
+echo "\${arg//\\\\//}"
+ENDWSL
+chmod +x "$MOCK_BIN/wslpath"
+
+set +e
+scrt_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app securecrt 2>&1)"
+scrt_status=$?
+set -e
+
+if [ "$scrt_status" -ne 0 ]; then
+    echo "$scrt_output"
+    echo "Expected SecureCRT Windows path discovery to pass"
+    exit 1
+fi
+
+# Restore fast mock powershell.exe for remaining tests
+cat > "$MOCK_BIN/powershell.exe" <<'EOF'
+#!/bin/bash
+exit 2
+EOF
+chmod +x "$MOCK_BIN/powershell.exe"
+rm -f "$MOCK_BIN/wslpath"
+
+# ── Termius Windows path discovery test ──────────────────────────────────────
+echo "Running --audit-client Termius Windows path discovery test..."
+
+mkdir -p "$TMP_DIR/win_appdata/Termius"
+cat > "$TMP_DIR/win_appdata/Termius/storage.json" <<'EOF'
+{
+  "hosts": [
+    {
+      "ciphers": "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com",
+      "forward_agent": false
+    }
+  ]
+}
+EOF
+
+cat > "$MOCK_BIN/powershell.exe" <<ENDMOCK
+#!/bin/bash
+args="\$*"
+if printf '%s' "\$args" | grep -q "ApplicationData"; then
+    printf '%s\r\n' "${TMP_DIR}/win_appdata"
+    exit 0
+fi
+if printf '%s' "\$args" | grep -q "LocalApplicationData"; then
+    printf '%s\r\n' "${TMP_DIR}/win_localappdata"
+    exit 0
+fi
+exit 2
+ENDMOCK
+chmod +x "$MOCK_BIN/powershell.exe"
+
+cat > "$MOCK_BIN/wslpath" <<ENDWSL
+#!/bin/bash
+arg="\${*: -1}"
+echo "\${arg//\\\\//}"
+ENDWSL
+chmod +x "$MOCK_BIN/wslpath"
+
+set +e
+termius_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app termius 2>&1)"
+termius_status=$?
+set -e
+
+if [ "$termius_status" -ne 0 ]; then
+    echo "$termius_output"
+    echo "Expected Termius Windows path discovery to pass"
+    exit 1
+fi
+
+# Restore fast mocks
+cat > "$MOCK_BIN/powershell.exe" <<'EOF'
+#!/bin/bash
+exit 2
+EOF
+chmod +x "$MOCK_BIN/powershell.exe"
+rm -f "$MOCK_BIN/wslpath"
+
+# ── --summary mode test ───────────────────────────────────────────────────────
+echo "Running --audit-client --summary mode test..."
+
+# Ensure openssh config is hardened for a pass result
+mkdir -p "$HOME_DIR/.ssh"
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+# BEGIN KratoSSH macOS hardening
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent no
+    ForwardX11 no
+    Compression no
+    RekeyLimit 1G 60m
+# END KratoSSH macOS hardening
+EOF
+
+set +e
+summary_output="$(bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --summary 2>&1)"
+summary_status=$?
+set -e
+
+if [ "$summary_status" -ne 0 ]; then
+    echo "$summary_output"
+    echo "Expected --summary to succeed on hardened openssh config"
+    exit 1
+fi
+
+if ! printf '%s' "$summary_output" | grep -q 'CLIENT'; then
+    echo "$summary_output"
+    echo "--summary output missing CLIENT header"
+    exit 1
+fi
+
+if ! printf '%s' "$summary_output" | grep -q 'openssh'; then
+    echo "$summary_output"
+    echo "--summary output missing openssh row"
+    exit 1
+fi
+
 echo "--audit-client tests passed."

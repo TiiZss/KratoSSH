@@ -448,7 +448,7 @@ function _audit_missing_source() {
 function _audit_json_record() {
     local label="$1"
     local status="$2"  # pass | fail | warn
-    [ "${AUDIT_JSON:-false}" = true ] || return 0
+    [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || return 0
     [ -n "${_AUDIT_JSON_TMP:-}" ] || return 0
     local clean_label="${label//\"/\\\"}"
     local clean_client="${_AUDIT_CURRENT_CLIENT:-unknown}"
@@ -612,14 +612,59 @@ function audit_client_macos_ssh() {
     return $fail
 }
 
+# Helper: resolve a Windows path via wslpath, returning empty string if unavailable.
+_wslpath_win() {
+    command -v wslpath >/dev/null 2>&1 || return 1
+    wslpath -u "$1" 2>/dev/null
+}
+
+# Helper: resolve a Windows env var (%APPDATA%, %LOCALAPPDATA%, …) via powershell.exe.
+_win_env_var() {
+    local varname="$1"
+    command -v powershell.exe >/dev/null 2>&1 || return 1
+    powershell.exe -NoProfile -Command "[System.Environment]::GetFolderPath('$varname')" 2>/dev/null | tr -d '\r'
+}
+
+function _audit_securecrt_ini_dir() {
+    # Return first existing SecureCRT sessions directory across Linux/WSL/Windows paths.
+    local candidates=(
+        "$HOME/.vandyke/SecureCRT/Config/Sessions"
+        "$HOME/.config/SecureCRT/Config/Sessions"
+    )
+    local d
+    for d in "${candidates[@]}"; do
+        [ -d "$d" ] && printf '%s' "$d" && return 0
+    done
+
+    # Windows/WSL: resolve %APPDATA%\VanDyke\config\sessions and %APPDATA%\SecureCRT\config\sessions
+    if command -v powershell.exe >/dev/null 2>&1; then
+        local appdata
+        appdata="$(powershell.exe -NoProfile -Command \"[System.Environment]::GetFolderPath('ApplicationData')\" 2>/dev/null | tr -d '\r')"
+        if [ -n "$appdata" ]; then
+            local win_paths=(
+                "${appdata}\\VanDyke\\Config\\Sessions"
+                "${appdata}\\SecureCRT\\Config\\Sessions"
+            )
+            local wp wsl_p
+            for wp in "${win_paths[@]}"; do
+                wsl_p="$(wslpath -u "$wp" 2>/dev/null)" || continue
+                [ -d "$wsl_p" ] && printf '%s' "$wsl_p" && return 0
+            done
+        fi
+    fi
+    return 1
+}
+
 function audit_client_securecrt() {
-    local dir="$HOME/.vandyke/SecureCRT/Config/Sessions"
+    local dir
     local file
     local fail=0
     local count=0
 
-    if [ ! -d "$dir" ]; then
-        _audit_missing_source "SecureCRT sessions not found at $dir"
+    dir="$(_audit_securecrt_ini_dir)" || true
+
+    if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+        _audit_missing_source "SecureCRT sessions not found (checked Linux paths and Windows %APPDATA%)"
         return $?
     fi
 
@@ -654,12 +699,43 @@ function audit_client_winscp() {
     return $fail
 }
 
+function _audit_termius_storage_file() {
+    # Return first existing Termius storage.json across Linux/WSL/Windows paths.
+    local candidates=(
+        "$HOME/.config/Termius/storage.json"
+        "$HOME/.local/share/Termius/storage.json"
+    )
+    local f
+    for f in "${candidates[@]}"; do
+        [ -f "$f" ] && printf '%s' "$f" && return 0
+    done
+
+    # Windows/WSL: try %APPDATA%\Termius\storage.json and %LOCALAPPDATA%\Termius\storage.json
+    if command -v powershell.exe >/dev/null 2>&1; then
+        local appdata localappdata
+        appdata="$(powershell.exe -NoProfile -Command \"[System.Environment]::GetFolderPath('ApplicationData')\" 2>/dev/null | tr -d '\r')"
+        localappdata="$(powershell.exe -NoProfile -Command \"[System.Environment]::GetFolderPath('LocalApplicationData')\" 2>/dev/null | tr -d '\r')"
+        local win_paths=(
+            "${appdata}\\Termius\\storage.json"
+            "${localappdata}\\Termius\\storage.json"
+        )
+        local wp wsl_p
+        for wp in "${win_paths[@]}"; do
+            wsl_p="$(wslpath -u "$wp" 2>/dev/null)" || continue
+            [ -f "$wsl_p" ] && printf '%s' "$wsl_p" && return 0
+        done
+    fi
+    return 1
+}
+
 function audit_client_termius() {
-    local file="$HOME/.config/Termius/storage.json"
+    local file
     local fail=0
 
-    if [ ! -f "$file" ]; then
-        _audit_missing_source "Termius storage not found at $file"
+    file="$(_audit_termius_storage_file)" || true
+
+    if [ -z "$file" ] || [ ! -f "$file" ]; then
+        _audit_missing_source "Termius storage not found (checked Linux paths and Windows %APPDATA%/%LOCALAPPDATA%)"
         return $?
     fi
 
@@ -701,9 +777,9 @@ function audit_client_hardening() {
         export KRATOSSH_SUPPRESS_LOGO=1
     fi
 
-    # Initialise JSON temp file when JSON output mode is active
+    # Initialise JSON temp file when JSON output or summary mode is active
     _AUDIT_JSON_TMP=""
-    if [ "${AUDIT_JSON:-false}" = true ]; then
+    if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ]; then
         _AUDIT_JSON_TMP="$(mktemp)"
     fi
 
@@ -790,6 +866,42 @@ function audit_client_hardening() {
             done
             printf ']\n'
         fi
+    fi
+
+    # Emit per-client summary table when --summary is requested
+    if [ "${AUDIT_SUMMARY:-false}" = true ] && [ -n "${_AUDIT_JSON_TMP:-}" ] && [ -f "$_AUDIT_JSON_TMP" ]; then
+        local clients_seen=()
+        local client_name s_pass s_fail s_warn
+        declare -A _sum_pass _sum_fail _sum_warn
+        while IFS= read -r jline; do
+            client_name="$(printf '%s' "$jline" | sed 's/.*"client":"//;s/".*//')" || continue
+            local status_val
+            status_val="$(printf '%s' "$jline" | sed 's/.*"status":"//;s/".*//')" || continue
+            if [[ ! " ${clients_seen[*]} " == *" $client_name "* ]]; then
+                clients_seen+=("$client_name")
+                _sum_pass["$client_name"]=0
+                _sum_fail["$client_name"]=0
+                _sum_warn["$client_name"]=0
+            fi
+            case "$status_val" in
+                pass) _sum_pass["$client_name"]=$(( ${_sum_pass[$client_name]} + 1 )) ;;
+                fail) _sum_fail["$client_name"]=$(( ${_sum_fail[$client_name]} + 1 )) ;;
+                warn) _sum_warn["$client_name"]=$(( ${_sum_warn[$client_name]} + 1 )) ;;
+            esac
+        done < "$_AUDIT_JSON_TMP"
+        [ "${AUDIT_JSON:-false}" = false ] && rm -f "$_AUDIT_JSON_TMP"
+
+        printf '\n%-16s  %5s  %5s  %5s\n' 'CLIENT' 'PASS' 'FAIL' 'WARN'
+        printf '%s\n' '─────────────────────────────────'
+        for client_name in $(printf '%s\n' "${clients_seen[@]}" | LC_ALL=C sort); do
+            s_pass=${_sum_pass[$client_name]:-0}
+            s_fail=${_sum_fail[$client_name]:-0}
+            s_warn=${_sum_warn[$client_name]:-0}
+            printf '%-16s  %5d  %5d  %5d\n' "$client_name" "$s_pass" "$s_fail" "$s_warn"
+        done
+        printf '\n'
+
+        unset _sum_pass _sum_fail _sum_warn
     fi
 
     if [ "$fail" -eq 0 ]; then

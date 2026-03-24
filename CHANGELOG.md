@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1730
+### Added
+- **Client audit**: `audit_client_securecrt()` now discovers Windows `%APPDATA%\\VanDyke\\Config\\Sessions` and `%APPDATA%\\SecureCRT\\Config\\Sessions` via `powershell.exe` + `wslpath` when no Linux path is found.
+- **Client audit**: `audit_client_termius()` now discovers Windows `%APPDATA%\\Termius\\storage.json` and `%LOCALAPPDATA%\\Termius\\storage.json` via `powershell.exe` + `wslpath` when no Linux path is found.
+- **CLI**: Added `--summary` for `--audit-client` to print a per-client PASS/FAIL/WARN count table to stdout after the audit run.
+- **Testing**: Added SecureCRT Windows path discovery test, Termius Windows path discovery test, and `--summary` mode test to `tests/test-audit-client.sh`.
+
+### Changed
+- **README**: Updated options list with `--summary` and refreshed Next steps.
+
 ## [2026-03-24] - v20260324_1645
 ### Added
 - **CLI**: Added `--json-pretty` for `--audit-client` to emit stable sorted pretty JSON output.
