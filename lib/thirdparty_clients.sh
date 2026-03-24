@@ -448,7 +448,7 @@ function _audit_missing_source() {
 function _audit_json_record() {
     local label="$1"
     local status="$2"  # pass | fail | warn
-    [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || return 0
+    [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ] || return 0
     [ -n "${_AUDIT_JSON_TMP:-}" ] || return 0
     local clean_label="${label//\"/\\\"}"
     local clean_client="${_AUDIT_CURRENT_CLIENT:-unknown}"
@@ -779,7 +779,7 @@ function audit_client_hardening() {
 
     # Initialise JSON temp file when JSON output or summary mode is active
     _AUDIT_JSON_TMP=""
-    if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ]; then
+    if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ] || [ -n "${AUDIT_EXPORT_CSV:-}" ]; then
         _AUDIT_JSON_TMP="$(mktemp)"
     fi
 
@@ -832,7 +832,6 @@ function audit_client_hardening() {
         while IFS= read -r line; do
             lines+=("$line")
         done < "$_AUDIT_JSON_TMP"
-        rm -f "$_AUDIT_JSON_TMP"
 
         # Stable ordering mode for deterministic CI diffs.
         if [ "${AUDIT_JSON_PRETTY:-false}" = true ] && [ "${#lines[@]}" -gt 0 ]; then
@@ -889,7 +888,6 @@ function audit_client_hardening() {
                 warn) _sum_warn["$client_name"]=$(( ${_sum_warn[$client_name]} + 1 )) ;;
             esac
         done < "$_AUDIT_JSON_TMP"
-        [ "${AUDIT_JSON:-false}" = false ] && rm -f "$_AUDIT_JSON_TMP"
 
         printf '\n%-16s  %5s  %5s  %5s\n' 'CLIENT' 'PASS' 'FAIL' 'WARN'
         printf '%s\n' '─────────────────────────────────'
@@ -903,6 +901,27 @@ function audit_client_hardening() {
 
         unset _sum_pass _sum_fail _sum_warn
     fi
+
+    # Export CSV when --export-csv is requested
+    if [ -n "${AUDIT_EXPORT_CSV:-}" ] && [ -n "${_AUDIT_JSON_TMP:-}" ] && [ -f "$_AUDIT_JSON_TMP" ]; then
+        printf 'client,check,status\n' > "$AUDIT_EXPORT_CSV"
+        while IFS= read -r jline; do
+            local csv_c csv_k csv_s
+            csv_c="$(printf '%s' "$jline" | sed 's/.*"client":"//;s/".*//')"
+            csv_k="$(printf '%s' "$jline" | sed 's/.*"check":"//;s/".*//')"
+            csv_s="$(printf '%s' "$jline" | sed 's/.*"status":"//;s/".*//')"
+            csv_k="${csv_k//\"/\"\"}"
+            printf '"%s","%s","%s"\n' "$csv_c" "$csv_k" "$csv_s" >> "$AUDIT_EXPORT_CSV"
+        done < "$_AUDIT_JSON_TMP"
+        if [ "${AUDIT_JSON:-false}" = true ] || [ "${AUDIT_SUMMARY:-false}" = true ]; then
+            log_success "Audit results exported to $AUDIT_EXPORT_CSV" >&2
+        else
+            log_success "Audit results exported to $AUDIT_EXPORT_CSV"
+        fi
+    fi
+
+    # Unified cleanup of temp file used by JSON/summary/CSV blocks
+    [ -n "${_AUDIT_JSON_TMP:-}" ] && rm -f "$_AUDIT_JSON_TMP"
 
     if [ "$fail" -eq 0 ]; then
         if [ "${AUDIT_JSON:-false}" = true ]; then

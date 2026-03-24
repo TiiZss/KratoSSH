@@ -418,4 +418,118 @@ if ! printf '%s' "$summary_output" | grep -q 'openssh'; then
     exit 1
 fi
 
+# ── --export-csv output test ─────────────────────────────────────────────────
+echo "Running --audit-client --export-csv output test..."
+
+CSV_OUT="$TMP_DIR/audit_export.csv"
+
+# Restore hardened openssh config for a clean pass state
+mkdir -p "$HOME_DIR/.ssh"
+cat > "$HOME_DIR/.ssh/config" <<'EOF'
+# BEGIN KratoSSH macOS hardening
+Host *
+    KexAlgorithms curve25519-sha256,diffie-hellman-group16-sha512
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    ForwardAgent no
+    ForwardX11 no
+    Compression no
+    RekeyLimit 1G 60m
+# END KratoSSH macOS hardening
+EOF
+
+set +e
+bash "$REPO_DIR/KratoSSH.sh" --audit-client --client-app openssh --export-csv "$CSV_OUT" 2>&1
+csv_status=$?
+set -e
+
+if [ "$csv_status" -ne 0 ]; then
+    echo "Expected --export-csv to exit 0 on hardened openssh config"
+    exit 1
+fi
+
+if [ ! -f "$CSV_OUT" ]; then
+    echo "--export-csv: CSV file not created at $CSV_OUT"
+    exit 1
+fi
+
+if ! head -n 1 "$CSV_OUT" | grep -q "^client,check,status$"; then
+    head -n 1 "$CSV_OUT"
+    echo "--export-csv: CSV header is not 'client,check,status'"
+    exit 1
+fi
+
+if ! grep -q "^\"openssh\"" "$CSV_OUT"; then
+    cat "$CSV_OUT"
+    echo "--export-csv: CSV missing openssh row"
+    exit 1
+fi
+
+if ! grep -q "\"pass\"$" "$CSV_OUT"; then
+    cat "$CSV_OUT"
+    echo "--export-csv: CSV has no pass entries"
+    exit 1
+fi
+
+# ── --cron-audit --dry-run test ───────────────────────────────────────────────
+echo "Running --cron-audit --dry-run test..."
+
+set +e
+cron_dry_out="$(bash "$REPO_DIR/KratoSSH.sh" --dry-run --cron-audit 2>&1)"
+cron_dry_status=$?
+set -e
+
+# With dry-run, should succeed and print the intended cron entry
+if [ "$cron_dry_status" -ne 0 ]; then
+    echo "$cron_dry_out"
+    echo "--cron-audit --dry-run returned non-zero"
+    exit 1
+fi
+
+if ! printf '%s' "$cron_dry_out" | grep -q "cron"; then
+    echo "$cron_dry_out"
+    echo "--cron-audit --dry-run did not print cron job info"
+    exit 1
+fi
+
+# ── --cron-audit --cron-schedule dry-run test ─────────────────────────────────
+echo "Running --cron-audit --cron-schedule dry-run test..."
+
+set +e
+cron_sched_out="$(bash "$REPO_DIR/KratoSSH.sh" --dry-run --cron-audit --cron-schedule "0 4 * * 7" 2>&1)"
+cron_sched_status=$?
+set -e
+
+if [ "$cron_sched_status" -ne 0 ]; then
+    echo "$cron_sched_out"
+    echo "--cron-audit --cron-schedule --dry-run returned non-zero"
+    exit 1
+fi
+
+if ! printf '%s' "$cron_sched_out" | grep -q "0 4 \* \* 7"; then
+    echo "$cron_sched_out"
+    echo "--cron-audit --cron-schedule dry-run did not reflect custom schedule"
+    exit 1
+fi
+
+# ── --cron-remove --dry-run test ──────────────────────────────────────────────
+echo "Running --cron-remove --dry-run test..."
+
+set +e
+cron_rm_out="$(bash "$REPO_DIR/KratoSSH.sh" --dry-run --cron-remove 2>&1)"
+cron_rm_status=$?
+set -e
+
+if [ "$cron_rm_status" -ne 0 ]; then
+    echo "$cron_rm_out"
+    echo "--cron-remove --dry-run returned non-zero"
+    exit 1
+fi
+
+if ! printf '%s' "$cron_rm_out" | grep -qi "Would remove\|cron"; then
+    echo "$cron_rm_out"
+    echo "--cron-remove --dry-run did not mention removal"
+    exit 1
+fi
+
 echo "--audit-client tests passed."

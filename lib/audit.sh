@@ -195,3 +195,64 @@ function verify_hardening_state() {
     log_success "Verification completed successfully with no critical issues."
     return 0
 }
+
+#########################
+# Cron Audit Functions  #
+#########################
+
+function install_cron_audit() {
+    local schedule="${1:-0 3 * * *}"
+    local email="${2:-}"
+    local script_path="${3:-$(realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo '/usr/local/bin/KratoSSH.sh')}"
+    local cron_file="/etc/cron.d/kratossh-audit"
+    local log_file="/var/log/kratossh-audit.log"
+    local cmd
+
+    if [ -n "$email" ]; then
+        cmd="$script_path --audit --auto 2>&1 | tee -a $log_file | mail -s 'KratoSSH Audit \$(hostname) \$(date +%F)' $email"
+    else
+        cmd="$script_path --audit --auto >> $log_file 2>&1"
+    fi
+
+    if [ "${DRY_RUN:-false}" = true ]; then
+        log_info "[DRY-RUN] Would write cron job to $cron_file:"
+        printf '  SHELL=/bin/bash\n'
+        printf '  PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n'
+        printf '  %s %s\n' "$schedule" "root $cmd"
+        return 0
+    fi
+
+    if [ "$(id -u)" -ne 0 ]; then
+        log_error "Installing a system cron job requires root. Use --dry-run to preview."
+        return 1
+    fi
+
+    printf 'SHELL=/bin/bash\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n%s root %s\n' \
+        "$schedule" "$cmd" > "$cron_file"
+    chmod 644 "$cron_file"
+    log_success "Cron job installed at $cron_file (schedule: \"$schedule\")"
+    [ -n "$email" ] && log_info "Reports will be emailed to: $email"
+    return 0
+}
+
+function remove_cron_audit() {
+    local cron_file="/etc/cron.d/kratossh-audit"
+
+    if [ "${DRY_RUN:-false}" = true ]; then
+        log_info "[DRY-RUN] Would remove $cron_file"
+        return 0
+    fi
+
+    if [ "$(id -u)" -ne 0 ]; then
+        log_error "Removing a system cron job requires root. Use --dry-run to preview."
+        return 1
+    fi
+
+    if [ -f "$cron_file" ]; then
+        rm -f "$cron_file"
+        log_success "KratoSSH cron job removed: $cron_file"
+    else
+        log_warn "No KratoSSH cron job found at $cron_file"
+    fi
+    return 0
+}

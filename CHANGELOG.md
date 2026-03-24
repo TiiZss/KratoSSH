@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-03-24] - v20260324_1800
+### Added
+- **CLI**: `--export-csv [FILE]` — writes `client,check,status` RFC 4180 CSV from `--audit-client` results. Works standalone or combined with `--json`/`--summary`.
+- **CLI**: `--cron-audit` — installs `/etc/cron.d/kratossh-audit` to run `--audit` on a schedule (default: `0 3 * * *`). Requires root; supports `--dry-run`.
+- **CLI**: `--cron-schedule [S]` — overrides the cron schedule string (companion to `--cron-audit`).
+- **CLI**: `--cron-email [E]` — pipes audit output to `mail` for per-run reports (companion to `--cron-audit`).
+- **CLI**: `--cron-remove` — removes the KratoSSH system cron job from `/etc/cron.d`.
+- **Testing**: Added `--export-csv` CSV structure tests, `--cron-audit --dry-run` preview test, `--cron-schedule` dry-run verification, and `--cron-remove --dry-run` test.
+
+### Changed
+- **Internals**: Unified temp file cleanup in `audit_client_hardening()` — single `rm -f` at the end after all JSON/summary/CSV blocks run.
+- **README**: Updated options list and refreshed Next steps.
+
 ## [2026-03-24] - v20260324_1730
 ### Added
 - **Client audit**: `audit_client_securecrt()` now discovers Windows `%APPDATA%\\VanDyke\\Config\\Sessions` and `%APPDATA%\\SecureCRT\\Config\\Sessions` via `powershell.exe` + `wslpath` when no Linux path is found.

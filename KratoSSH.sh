@@ -24,6 +24,10 @@ AUDIT_CLIENT_STRICT=false
 AUDIT_JSON=false
 AUDIT_JSON_PRETTY=false
 AUDIT_SUMMARY=false
+AUDIT_EXPORT_CSV=""
+CRON_AUDIT=false
+CRON_SCHEDULE="0 3 * * *"
+CRON_EMAIL=""
 
 function require_option_value() {
     local option_name="$1"
@@ -399,6 +403,29 @@ while [[ $# -gt 0 ]]; do
             AUDIT_SUMMARY=true
             shift
             ;;
+        --export-csv)
+            require_option_value "--export-csv" "${2:-}"
+            AUDIT_EXPORT_CSV="$2"
+            shift 2
+            ;;
+        --cron-audit)
+            CRON_AUDIT=true
+            shift
+            ;;
+        --cron-schedule)
+            require_option_value "--cron-schedule" "${2:-}"
+            CRON_SCHEDULE="$2"
+            shift 2
+            ;;
+        --cron-email)
+            require_option_value "--cron-email" "${2:-}"
+            CRON_EMAIL="$2"
+            shift 2
+            ;;
+        --cron-remove)
+            CRON_AUDIT=remove
+            shift
+            ;;
         --verify)
             # verify_hardening_state performs local post-hardening checks
             verify_hardening_state
@@ -446,6 +473,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --json              With --audit-client, emit JSON array to stdout (human log to stderr)"
             echo "  --json-pretty       With --audit-client, emit stable sorted pretty JSON for deterministic CI diffs"
             echo "  --summary           With --audit-client, print a per-client pass/fail/warn count table"
+            echo "  --export-csv [FILE] With --audit-client, write audit results as CSV to FILE"
+            echo "  --cron-audit        Install a system cron job to run --audit periodically"
+            echo "  --cron-schedule [S] Cron schedule string (default: '0 3 * * *', use with --cron-audit)"
+            echo "  --cron-email [E]    Email address for audit reports (use with --cron-audit)"
+            echo "  --cron-remove       Remove the KratoSSH system cron job"
             echo "  --verify            Run post-hardening verification checks"
             echo "  --fix               Apply server crypto hardening (auto server mode)"
             echo "  --fix-port [PORT]   With --fix, also set SSH port and perimeter rules"
@@ -469,6 +501,16 @@ CLIENT_APP="$(normalize_client_app "$CLIENT_APP")"
 
 if [ "$AUDIT_CLIENT" = true ]; then
     audit_client_hardening "$CLIENT_APP"
+    exit $?
+fi
+
+if [ "$CRON_AUDIT" = true ]; then
+    install_cron_audit "$CRON_SCHEDULE" "$CRON_EMAIL" "$(realpath "$0" 2>/dev/null || echo "$0")"
+    exit $?
+fi
+
+if [ "$CRON_AUDIT" = remove ]; then
+    remove_cron_audit
     exit $?
 fi
 
